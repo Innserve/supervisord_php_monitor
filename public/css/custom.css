@@ -1,0 +1,59 @@
+body{
+	cursor: default;
+}
+.popover {
+	max-width:	450px;
+}
+.footer{ text-align:center;}
+
+#refresh{
+	color:		white;
+	min-width:	34px;
+	text-align:	center;
+	display:block;
+	float: right;
+}
+
+.actions a:not(:last-child) {
+	margin-right: 5px;
+}
+
+.actions {
+	display: flex;
+}
+
+@media (min-width: 1800px){
+	.container {
+		width: 1700px;
+	}
+	.span4 {
+		width: 545px;
+	}	
+}
+@media (min-width: 980px){
+	body {
+		padding-top: 60px;
+	}
+}
+
+.icon-red {
+  background-image: url("../img/glyphicons-halflings-red.png") !important;
+}
+.icon-purple {
+  background-image: url("../img/glyphicons-halflings-purple.png") !important;
+}
+.icon-blue {
+  background-image: url("../img/glyphicons-halflings-blue.png") !important;
+}
+.icon-lightblue {
+  background-image: url("../img/glyphicons-halflings-lightblue.png") !important;
+}
+.icon-green {
+  background-image: url("../img/glyphicons-halflings-green.png") !important;
+}
+.icon-yellow {
+  background-image: url("../img/glyphicons-halflings-yellow.png") !important;
+}
+.icon-orange {
+  background-image: url("../img/glyphicons-halflings-orange.png") !important;
+}

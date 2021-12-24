@@ -1,0 +1,8 @@
+{
+	"name": "mlazarov/supervisord-monitor",
+	"description": "Supervisord Multi Server Monitoring Tool",
+	"license": "MIT",
+	"require": {
+		"phpxmlrpc/phpxmlrpc": "4"
+	}
+}
