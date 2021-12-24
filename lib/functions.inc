@@ -1,9 +1,8 @@
 <?php
-// use PhpXmlRpc\Value;
-// use PhpXmlRpc\Request;
-// use PhpXmlRpc\Client;
-// use PhpXmlRpc\Helper;
-// use PhpXmlRpc\PhpXmlRpc;
+use PhpXmlRpc\Encoder;
+use PhpXmlRpc\Request;
+use PhpXmlRpc\Client;
+
 
 function do_the_request( string $server, string $method, array $params = [] ) {
 
@@ -13,27 +12,12 @@ function do_the_request( string $server, string $method, array $params = [] ) {
     die("Invalid server: ".$server);
   }
 
-  // $client = new Client( $servers[$server]['url'] );
-  // $request = new Request( 'supervisor.'.$method );
-  // $client->setDebug(1);
-  // $response = $client->send($request, $config['timeout'], []);
+  $encoder = new Encoder();
+  $client = new Client( $servers[$server]['url'].":".$servers[$server]['port']."/RPC2" );
+  $request = new Request( 'supervisor.'.$method, $encoder->encode($params) );
 
-  $response = xmlrpc_decode(
-                trim(
-                  file_get_contents(
-                    $servers[$server]['url'].":".$servers[$server]['port']."/RPC2",
-                    FALSE,
-                    stream_context_create([
-                      'http' => [
-                        'method'  => 'POST',
-                        'header'  => ['Content-Type: text/xml'],
-                        'content' => xmlrpc_encode_request('supervisor.'.$method, $params),
-                        'timeout' => $config['timeout']
-                      ]
-                    ])
-                  )
-                )
-              );
+  $response = $client->send($request, $config['timeout'], []);
+  $value = $encoder->decode($response->value());
 
-  return $response;
+  return $value;
 }

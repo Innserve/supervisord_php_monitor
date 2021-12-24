@@ -4,40 +4,47 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4080fdfc1d227d0e8305288f31b2c6e8",
+    "content-hash": "751c5d1cda2ba379a5bac6c0909a4432",
     "packages": [
         {
             "name": "phpxmlrpc/phpxmlrpc",
-            "version": "4.0.0",
+            "version": "4.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/gggeek/phpxmlrpc.git",
-                "reference": "679eacd661962f353a809ab66e83a86233f28bcc"
+                "reference": "b9401ffa2174663e376dcbb3aadba09eb62d8d19"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/gggeek/phpxmlrpc/zipball/679eacd661962f353a809ab66e83a86233f28bcc",
-                "reference": "679eacd661962f353a809ab66e83a86233f28bcc",
+                "url": "https://api.github.com/repos/gggeek/phpxmlrpc/zipball/b9401ffa2174663e376dcbb3aadba09eb62d8d19",
+                "reference": "b9401ffa2174663e376dcbb3aadba09eb62d8d19",
                 "shasum": ""
             },
             "require": {
                 "ext-xml": "*",
-                "php": ">=5.3.0"
+                "php": "^5.3.0 || ^7.0 || ^8.0"
+            },
+            "conflict": {
+                "phpxmlrpc/extras": "<= 0.6.3"
             },
             "require-dev": {
-                "codeclimate/php-test-reporter": "dev-master",
-                "docbook/docbook-xsl": "~1.78",
+                "docbook/docbook-xsl": "^1.79",
                 "ext-curl": "*",
+                "ext-dom": "*",
                 "ext-mbstring": "*",
-                "indeyets/pake": "~1.99",
-                "phpdocumentor/phpdocumentor": "2.*",
-                "phpunit/phpunit": ">=4.0.0",
-                "phpunit/phpunit-selenium": "*"
+                "ext-xsl": "*",
+                "indeyets/pake": "^1.99",
+                "phpunit/phpunit": "^5.0 || ^8.5.14",
+                "phpunit/phpunit-selenium": "*",
+                "yoast/phpunit-polyfills": "*"
             },
             "suggest": {
                 "ext-curl": "Needed for HTTPS and HTTP 1.1 support, NTLM Auth etc...",
                 "ext-mbstring": "Needed to allow reception of requests/responses in character sets other than ASCII,LATIN-1,UTF-8",
-                "ext-zlib": "Needed for sending compressed requests and receiving compressed responses, if cURL is not available"
+                "ext-zlib": "Needed for sending compressed requests and receiving compressed responses, if cURL is not available",
+                "phpxmlrpc/extras": "Adds more featured Server classes and other useful bits",
+                "phpxmlrpc/jsonrpc": "Adds support for the JSON-RPC protocol",
+                "sami/sami": "Required for doc generation using pake. Version constraints: ^3.3 || ^4.1"
             },
             "type": "library",
             "autoload": {
@@ -50,16 +57,17 @@
                 "BSD-3-Clause"
             ],
             "description": "A php library for building xmlrpc clients and servers",
-            "homepage": "http://gggeek.github.io/phpxmlrpc/",
+            "homepage": "https://gggeek.github.io/phpxmlrpc/",
             "keywords": [
                 "webservices",
+                "xml-rpc",
                 "xmlrpc"
             ],
             "support": {
                 "issues": "https://github.com/gggeek/phpxmlrpc/issues",
-                "source": "https://github.com/gggeek/phpxmlrpc/tree/master"
+                "source": "https://github.com/gggeek/phpxmlrpc/tree/4.6.0"
             },
-            "time": "2016-01-20T23:28:09+00:00"
+            "time": "2021-12-09T18:28:20+00:00"
         }
     ],
     "packages-dev": [],

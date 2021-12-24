@@ -1,10 +1,5 @@
 <?php
-// require_once "../vendor/autoload.php";
-// use PhpXmlRpc\Value;
-// use PhpXmlRpc\Request;
-// use PhpXmlRpc\Client;
-// use PhpXmlRpc\Helper;
-
+require_once "../vendor/autoload.php";
 require_once "../config/config.inc";
 require_once "../lib/functions.inc";
 
