@@ -5,6 +5,8 @@ require_once "../vendor/autoload.php";
 require_once "../config/config.inc";
 require_once "../lib/functions.inc";
 
+// $config['debug'] = TRUE;
+
 $config['refresh'] = $config['refresh'] ?? 60;
 $config['supervisor_servers'] = $config['supervisor_servers'] ?? [];
 
@@ -41,11 +43,17 @@ foreach($config['supervisor_servers'] as $name => $settings){
                 echo '&nbsp;- v<i>'.$details['version'].'</i>';
                 if(!isset($details['list']['error'])){
                 ?>
-                <span class="server-btns pull-right">
-                  <a href="<?php echo ('/control/stopall/'.$name); ?>" class="btn btn-mini btn-inverse" type="button"><i class="icon-stop icon-white"></i> Stop all</a>
-                  <a href="<?php echo ('/control/startall/'.$name); ?>" class="btn btn-mini btn-success" type="button"><i class="icon-play icon-white"></i> Start all</a>
-                  <a href="<?php echo ('/control/restartall/'.$name); ?>" class="btn btn-mini btn-primary" type="button"><i class="icon icon-refresh icon-white"></i> Restart all</a>
-                </span>
+                  <span class="server-btns pull-right">
+                    <a href="/control?action=stopAllProcesses&server=<?=$name?>" class="btn btn-mini btn-inverse" type="button">
+                      <i class="icon-stop icon-white"></i> Stop all
+                    </a>
+                    <a href="/control?action=startAllProcesses&server=<?=$name?>" class="btn btn-mini btn-success" type="button">
+                      <i class="icon-play icon-white"></i> Start all
+                    </a>
+                    <a href="/control?action=restartAllProcesses&server=<?=$name?>" class="btn btn-mini btn-primary" type="button">
+                      <i class="icon icon-refresh icon-white"></i> Restart all
+                    </a>
+                  </span>
                 <?php
                 }
                 ?>
@@ -89,10 +97,16 @@ foreach($config['supervisor_servers'] as $name => $settings){
                 <td style="width:1%">
                   <div class="actions">
                     <?php if($status=='RUNNING'){ ?>
-                    <a href="<?php echo ('/control/stop/'.$name.'/'.$item_name);?>" class="btn btn-mini btn-inverse" type="button"><i class="icon-stop icon-white"></i></a>
-                    <a href="<?php echo ('/control/restart/'.$name.'/'.$item_name);?>" class="btn btn-mini btn-inverse" type="button"><i class="icon-refresh icon-white"></i></a>
-                    <?php } if($status=='STOPPED' || $status == 'EXITED' || $status=='FATAL'){ ?>
-                    <a href="<?php echo ('/control/start/'.$name.'/'.$item_name);?>" class="btn btn-mini btn-success" type="button"><i class="icon-play icon-white"></i></a>
+                    <a href="/control?action=stopProcess&server=<?=$name?>&worker=<?=$item_name?>" class="btn btn-mini btn-inverse" type="button">
+                      <i class="icon-stop icon-white"></i>
+                    </a>
+                    <a href="/control?action=restartProcess&server=<?=$name?>&worker=<?=$item_name?>" class="btn btn-mini btn-inverse" type="button">
+                      <i class="icon-refresh icon-white"></i>
+                    </a>
+                    <?php } if( in_array( $status, ['STOPPED', 'EXITED', 'FATAL'] ) ){ ?>
+                    <a href="/control?action=startProcess&server=<?=$name?>&worker=<?=$item_name?>" class="btn btn-mini btn-success" type="button">
+                      <i class="icon-play icon-white"></i>
+                    </a>
                     <?php } ?>
                   </div>
                 </td>

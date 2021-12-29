@@ -14,10 +14,25 @@ function do_the_request( string $server, string $method, array $params = [] ) :a
 
   $encoder = new Encoder();
   $client = new Client( $config['supervisor_servers'][$server]['url'].":".$config['supervisor_servers'][$server]['port']."/RPC2" );
+
+  if( $config['debug'] ?? FALSE ) {
+    $client->setDebug(1);
+  }
+
   $request = new Request( 'supervisor.'.$method, $encoder->encode($params) );
 
   $response = $client->send($request, $config['timeout'], []);
-  $value = $encoder->decode($response->value());
+
+  if( !$response->faultCode() ){
+    $value = $encoder->decode($response->value());
+  } else {
+    $value = $response->faultString();
+  }
+
+  if( is_bool($value) ){
+    $value = $value ? "True" : "False";
+  }
 
   return $value;
+
 }
