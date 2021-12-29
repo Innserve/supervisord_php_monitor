@@ -46,9 +46,15 @@ foreach($config['supervisor_servers'] as $name => $settings){
       <div class="col">
         <h2 class='d-inline-block'>Supervisor PHP Monitor <small class="text-muted">v<?=$config['version']?></small></h2>
         <nav class="nav">
-          <a class="nav-link" href="https://github.com/Innserve/supervisord_php_monitor"><i class="bi bi-github"></i> Github</a>
-          <a class="nav-link" href="https://github.com/Innserve/supervisord_php_monitor/issues"><i class="bi bi-exclamation-diamond"></i> Issues</a>
-          <a class="nav-link" href="https://github.com/Innserve/supervisord_php_monitor/releases"><i class="bi bi-file-diff"></i> Releases</a>
+          <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor">
+            <i class="bi bi-github"></i> Github
+          </a>
+          <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor/issues">
+            <i class="bi bi-exclamation-diamond"></i> Issues
+          </a>
+          <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor/releases">
+            <i class="bi bi-file-diff"></i> Releases
+          </a>
         </nav>
       </div>
     </div>
@@ -60,7 +66,7 @@ foreach($config['supervisor_servers'] as $name => $settings){
             <thead>
               <tr>
                 <th colspan="4">
-                  <a href="<?=$details['url'].":".$details['port']?>" class='link-secondary'>
+                  <a href="<?=$details['url'].":".$details['port']?>" class='link-secondary' target="_blank">
                     <?=$name?> (<?=str_replace("http://","",$details['url']);?>)
                   </a>
                   <?php
