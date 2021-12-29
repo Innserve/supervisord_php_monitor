@@ -4,12 +4,18 @@
 	"license": "MIT",
 	"require": {
 		"phpxmlrpc/phpxmlrpc": "^4",
-		"twbs/bootstrap": "^5"
+		"twbs/bootstrap": "^5",
+		"twbs/bootstrap-icons": "^1",
+		"components/jquery": "^3.6"
 	},
 	"scripts": {
 		"post-update-cmd": [
 			"rm -rf public/bootstrap",
-			"cp -R vendor/twbs/bootstrap/dist public/bootstrap"
+			"cp -R vendor/twbs/bootstrap/dist public/bootstrap",
+			"rm -rf public/bootstrap-icons",
+			"cp -R vendor/twbs/bootstrap-icons/font public/bootstrap-icons",
+			"rm -rf public/jquery",
+			"cp -R vendor/components/jquery public/jquery"
 		]
 	}
 }

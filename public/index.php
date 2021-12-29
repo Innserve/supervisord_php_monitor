@@ -7,6 +7,8 @@ require_once "../lib/functions.inc";
 
 // $config['debug'] = TRUE;
 
+$config['version'] = '1.00';
+
 $config['refresh'] = $config['refresh'] ?? 60;
 $config['supervisor_servers'] = $config['supervisor_servers'] ?? [];
 
@@ -16,116 +18,149 @@ foreach($config['supervisor_servers'] as $name => $settings){
 }
 ?>
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+
   <head>
     <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Supervisord Monitoring</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link type="text/css" rel="stylesheet" href="css/bootstrap.min.css"/>
-    <link type="text/css" rel="stylesheet" href="css/bootstrap-responsive.min.css"/>
-    <link type="text/css" rel="stylesheet" href="css/custom.css"/>
-    <script type="text/javascript" src="js/jquery-1.10.1.min.js"></script>
-    <script type="text/javascript" src="js/bootstrap.min.js"></script>
+
+    <!-- Bootstrap Stylesheet -->
+    <link type="text/css" rel="stylesheet" href="bootstrap/css/bootstrap.min.css"/>
+    <link type="text/css" rel="stylesheet" href="bootstrap-icons/bootstrap-icons.css"/>
+    <link type="text/css" rel="stylesheet" href="css/super_monitor.css"/>
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
     <meta http-equiv='refresh' content='<?=$config['refresh']?>'>
   </head>
+
   <body>
-    <div class="container">
+    <div class="container-fluid mt-3 mb-3">
+      <div class="col">
+        <h2 class='d-inline-block'>Supervisor PHP Monitor <small class="text-muted">v<?=$config['version']?></small></h2>
+        <nav class="nav">
+          <a class="nav-link" href="https://github.com/Innserve/supervisord_php_monitor"><i class="bi bi-github"></i> Github</a>
+          <a class="nav-link" href="https://github.com/Innserve/supervisord_php_monitor/issues"><i class="bi bi-exclamation-diamond"></i> Issues</a>
+          <a class="nav-link" href="https://github.com/Innserve/supervisord_php_monitor/releases"><i class="bi bi-file-diff"></i> Releases</a>
+        </nav>
+      </div>
+    </div>
+    <div class="container-fluid">
       <div class="row">
         <?php foreach($config['supervisor_servers'] as $name=>$details){ ?>
-        <div class="span6">
-          <table class="table table-bordered table-condensed table-striped">
-            <tr>
-              <th colspan="4">
-                <a href="<?=$details['url'].":".$details['port']?>"><?=$name?></a>
-                <?php
-                echo '&nbsp;<i>'.str_replace("http://","",$details['url']).'</i>';
-                echo '&nbsp;- v<i>'.$details['version'].'</i>';
-                if(!isset($details['list']['error'])){
-                ?>
-                  <span class="server-btns pull-right">
-                    <a href="/control?action=stopAllProcesses&server=<?=$name?>" class="btn btn-mini btn-inverse" type="button">
-                      <i class="icon-stop icon-white"></i> Stop all
-                    </a>
-                    <a href="/control?action=startAllProcesses&server=<?=$name?>" class="btn btn-mini btn-success" type="button">
-                      <i class="icon-play icon-white"></i> Start all
-                    </a>
-                    <a href="/control?action=restartAllProcesses&server=<?=$name?>" class="btn btn-mini btn-primary" type="button">
-                      <i class="icon icon-refresh icon-white"></i> Restart all
-                    </a>
-                  </span>
-                <?php
-                }
-                ?>
-              </th>
-            </tr>
-            <?php
-            foreach($details['list'] as $item){
-              if($item['group'] != $item['name']){
-                $item_name = $item['group'].":".$item['name'];
-              }
-              else {
-                $item_name = $item['name'];
-              }
-
-              $pid = '&nbsp;';
-              $uptime = '&nbsp;';
-              $status = $item['statename'];
-              if($status=='RUNNING'){
-                $class = 'success';
-                list($pid,$uptime) = explode(",",$item['description']);
-              }
-              elseif($status=='STARTING') {
-                $class = 'info';
-              }
-              elseif($status=='FATAL') {
-                $class = 'important';
-              }
-              elseif($status=='STOPPED') {
-                $class = 'inverse';
-              }
-              else {
-                $class = 'error';
-              }
-
-              $uptime = str_replace("uptime ","",$uptime);
-              ?>
+        <div class="col col-lg-6 col-xl-4 col-xxl-3">
+          <table class="table table-bordered table-sm table-striped">
+            <thead>
               <tr>
-                <td><?= $item_name; ?></td>
-                <td width="10"><span class="label label-<?php echo $class;?>"><?php echo $status;?></span></td>
-                <td width="80" style="text-align:right"><?php echo $uptime;?></td>
-                <td style="width:1%">
-                  <div class="actions">
-                    <?php if($status=='RUNNING'){ ?>
-                    <a href="/control?action=stopProcess&server=<?=$name?>&worker=<?=$item_name?>" class="btn btn-mini btn-inverse" type="button">
-                      <i class="icon-stop icon-white"></i>
-                    </a>
-                    <a href="/control?action=restartProcess&server=<?=$name?>&worker=<?=$item_name?>" class="btn btn-mini btn-inverse" type="button">
-                      <i class="icon-refresh icon-white"></i>
-                    </a>
-                    <?php } if( in_array( $status, ['STOPPED', 'EXITED', 'FATAL'] ) ){ ?>
-                    <a href="/control?action=startProcess&server=<?=$name?>&worker=<?=$item_name?>" class="btn btn-mini btn-success" type="button">
-                      <i class="icon-play icon-white"></i>
-                    </a>
-                    <?php } ?>
-                  </div>
-                </td>
+                <th colspan="4">
+                  <a href="<?=$details['url'].":".$details['port']?>" class='link-secondary'>
+                    <?=$name?> (<?=str_replace("http://","",$details['url']);?>)
+                  </a>
+                  <?php
+                  echo '&nbsp; v<i>'.$details['version'].'</i>';
+                  if(!isset($details['list']['error'])){
+                  ?>
+                    <span class="server-btns float-end">
+                      <a href="/control?action=stopAllProcesses&server=<?=$name?>" class="btn btn-xs btn-danger" type="button">
+                        <i class="bi bi-stop-circle"></i> Stop all
+                      </a>
+                      <a href="/control?action=startAllProcesses&server=<?=$name?>" class="btn btn-xs btn-success" type="button">
+                        <i class="bi bi-play-circle"></i> Start all
+                      </a>
+                      <a href="/control?action=restartAllProcesses&server=<?=$name?>" class="btn btn-xs btn-warning" type="button">
+                        <i class="bi bi-arrow-clockwise"></i> Restart all
+                      </a>
+                    </span>
+                  <?php
+                  }
+                  ?>
+                </th>
               </tr>
+            </thead>
+            <tbody>
               <?php
-            }
+              foreach($details['list'] as $item){
+                if($item['group'] != $item['name']){
+                  $item_name = $item['group'].":".$item['name'];
+                }
+                else {
+                  $item_name = $item['name'];
+                }
 
-            ?>
+                $pid = '&nbsp;';
+                $uptime = '&nbsp;';
+                $status = $item['statename'];
+
+                switch ($status) {
+                  case 'RUNNING':
+                    $class = 'table-success';
+                    list($pid,$uptime) = explode(",",$item['description']);
+                    break;
+                  case 'STARTING':
+                    $class = 'table-warning';
+                    break;
+                  case 'FATAL':
+                    $class = 'table-danger';
+                    break;
+                  case 'STOPPED':
+                    $class = 'table-danger';
+                    break;
+                  default:
+                    $class = 'table-secondary';
+                    break;
+                }
+
+                $uptime = str_replace("uptime ","",$uptime);
+                ?>
+                <tr>
+                  <td><?=$item_name;?></td>
+                  <td style="text-align:center" class='<?=$class;?>'><?=$status;?></td>
+                  <td style="text-align:right"><?=$uptime;?></td>
+                  <td style="text-align:right">
+                    <div class="actions">
+                      <?php if($status=='RUNNING'){ ?>
+                      <a href="/control?action=stopProcess&server=<?=$name?>&worker=<?=$item_name?>" class="btn btn-xs btn-danger" type="button">
+                        <i class="bi bi-stop-circle"></i>
+                      </a>
+                      <a href="/control?action=restartProcess&server=<?=$name?>&worker=<?=$item_name?>" class="btn btn-xs btn-warning" type="button">
+                        <i class="bi bi-arrow-clockwise"></i>
+                      </a>
+                      <?php } if( in_array( $status, ['STOPPED', 'EXITED', 'FATAL'] ) ){ ?>
+                      <a href="/control?action=startProcess&server=<?=$name?>&worker=<?=$item_name?>" class="btn btn-xs btn-success" type="button">
+                        <i class="bi bi-play-circle"></i>
+                      </a>
+                      <?php } ?>
+                    </div>
+                  </td>
+                </tr>
+                <?php
+              }
+              ?>
+            </tbody>
           </table>
         </div>
         <?php
         }
         ?>
       </div>
-    </div>
 
-    <div class="footer">
-      <p>Powered by <a href="https://github.com/Innserve/supervisord_php_monitor" target="_blank">Supervisord Monitor</a></p>
+      <div class="row">
+        <div class="col text-center mt-3" id="footer">
+          <p>Powered by <a href="https://github.com/Innserve/supervisord_php_monitor" target="_blank">Supervisord Monitor</a></p>
+        </div>
+      </div>
+
     </div>
+    <script type="text/javascript" src="jquery/jquery.min.js"></script>
+    <script type="text/javascript" src="bootstrap/js/bootstrap.min.js"></script>
 
   </body>
+
 </html>

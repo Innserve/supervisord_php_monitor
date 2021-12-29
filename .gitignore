@@ -2,3 +2,5 @@ config/config.inc
 composer.phar
 /vendor
 public/bootstrap
+public/bootstrap-icons
+public/jquery
