@@ -1,3 +1,4 @@
 config/config.inc
 composer.phar
 /vendor
+public/bootstrap
