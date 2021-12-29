@@ -7,7 +7,7 @@ require_once "../lib/functions.inc";
 
 // $config['debug'] = TRUE;
 
-$config['version'] = '1.0.0';
+$config['version'] = '1.0.1';
 
 $config['refresh'] = $config['refresh'] ?? 60;
 $config['supervisor_servers'] = $config['supervisor_servers'] ?? [];
@@ -17,7 +17,6 @@ foreach($config['supervisor_servers'] as $name => $settings){
   $config['supervisor_servers'][$name]['version'] = do_the_request($name,'getSupervisorVersion');
 }
 ?>
-
 <!doctype html>
 <html lang="en">
 
@@ -44,7 +43,10 @@ foreach($config['supervisor_servers'] as $name => $settings){
   <body>
     <div class="container-fluid mt-3 mb-3">
       <div class="col">
-        <h2 class='d-inline-block'>Supervisor PHP Monitor <small class="text-muted">v<?=$config['version']?></small></h2>
+        <h2 class='d-inline-block'>
+          Supervisor PHP Monitor
+          <small class="text-muted">v<span id="gh_version_number"><?=$config['version']?></span></small>
+        </h2>
         <nav class="nav">
           <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor">
             <i class="bi bi-github"></i> Github
@@ -53,7 +55,7 @@ foreach($config['supervisor_servers'] as $name => $settings){
             <i class="bi bi-exclamation-diamond"></i> Issues
           </a>
           <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor/releases">
-            <i class="bi bi-file-diff"></i> Releases
+            <i class="bi bi-file-diff"></i> Releases <span id="version_badge"><i class="bi bi-question-circle"></i></span>
           </a>
         </nav>
       </div>
@@ -166,6 +168,7 @@ foreach($config['supervisor_servers'] as $name => $settings){
     </div>
     <script type="text/javascript" src="jquery/jquery.min.js"></script>
     <script type="text/javascript" src="bootstrap/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="js/super_monitor.js"></script>
 
   </body>
 
