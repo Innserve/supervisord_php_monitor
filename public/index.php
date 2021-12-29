@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 require_once "../vendor/autoload.php";
 require_once "../config/config.inc";
 require_once "../lib/functions.inc";
@@ -6,12 +8,10 @@ require_once "../lib/functions.inc";
 $config['refresh'] = $config['refresh'] ?? 60;
 $config['supervisor_servers'] = $config['supervisor_servers'] ?? [];
 
-$servers = $config['supervisor_servers'];
-foreach($servers as $name => $settings){
-  $servers[$name]['list'] = do_the_request($name,'getAllProcessInfo');
-  $servers[$name]['version'] = do_the_request($name,'getSupervisorVersion');
+foreach($config['supervisor_servers'] as $name => $settings){
+  $config['supervisor_servers'][$name]['list'] = do_the_request($name,'getAllProcessInfo');
+  $config['supervisor_servers'][$name]['version'] = do_the_request($name,'getSupervisorVersion');
 }
-
 ?>
 
 <!DOCTYPE html>
@@ -30,7 +30,7 @@ foreach($servers as $name => $settings){
   <body>
     <div class="container">
       <div class="row">
-        <?php foreach($servers as $name=>$details){ ?>
+        <?php foreach($config['supervisor_servers'] as $name=>$details){ ?>
         <div class="span6">
           <table class="table table-bordered table-condensed table-striped">
             <tr>
@@ -110,7 +110,7 @@ foreach($servers as $name => $settings){
     </div>
 
     <div class="footer">
-      <p>Powered by <a href="https://github.com/mlazarov/supervisord-monitor" target="_blank">Supervisord Monitor</a></p>
+      <p>Powered by <a href="https://github.com/Innserve/supervisord_php_monitor" target="_blank">Supervisord Monitor</a></p>
     </div>
 
   </body>
