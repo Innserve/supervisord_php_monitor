@@ -1,5 +1,7 @@
 # Supervisord Multi Server Monitoring Tool
 
+![Screenshot](screen.png)
+
 A minimum viable product for monitoring a fleet of supervisord instances across mulitple servers
 
 Heavily adapted from https://github.com/mlazarov/supervisord-monitor, we took out all the stuff we didn't want to use, removed the frameworks

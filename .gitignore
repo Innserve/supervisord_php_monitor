@@ -4,3 +4,4 @@ composer.phar
 public/bootstrap
 public/bootstrap-icons
 public/jquery
+.DS_Store
