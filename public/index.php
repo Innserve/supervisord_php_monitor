@@ -7,7 +7,7 @@ require_once "../lib/functions.inc";
 
 // $config['debug'] = TRUE;
 
-$config['version'] = '1.0.1';
+$config['version'] = '1.0.2';
 
 $config['refresh'] = $config['refresh'] ?? 60;
 $config['supervisor_servers'] = $config['supervisor_servers'] ?? [];
