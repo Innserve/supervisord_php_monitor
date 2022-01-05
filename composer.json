@@ -16,6 +16,14 @@
 			"cp -R vendor/twbs/bootstrap-icons/font public/bootstrap-icons",
 			"rm -rf public/jquery",
 			"cp -R vendor/components/jquery public/jquery"
+		],
+		"post-install-cmd": [
+			"rm -rf public/bootstrap",
+			"cp -R vendor/twbs/bootstrap/dist public/bootstrap",
+			"rm -rf public/bootstrap-icons",
+			"cp -R vendor/twbs/bootstrap-icons/font public/bootstrap-icons",
+			"rm -rf public/jquery",
+			"cp -R vendor/components/jquery public/jquery"
 		]
 	}
 }
