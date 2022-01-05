@@ -3,3 +3,7 @@
   font-size: 0.675rem;
   border-radius: 0.22rem;
 }
+
+.cur-point {
+  cursor: pointer;
+}

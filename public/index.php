@@ -17,6 +17,7 @@ foreach($config['supervisor_servers'] as $name => $settings){
   $config['supervisor_servers'][$name]['version'] = do_the_request($name,'getSupervisorVersion');
 }
 ?>
+
 <!doctype html>
 <html lang="en">
 
@@ -37,29 +38,41 @@ foreach($config['supervisor_servers'] as $name => $settings){
       <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
       <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
-    <meta http-equiv='refresh' content='<?=$config['refresh']?>'>
   </head>
 
   <body>
+
     <div class="container-fluid mt-3 mb-3">
-      <div class="col">
-        <h2 class='d-inline-block'>
-          Supervisor PHP Monitor
-          <small class="text-muted">v<span id="gh_version_number"><?=$config['version']?></span></small>
-        </h2>
-        <nav class="nav">
-          <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor">
-            <i class="bi bi-github"></i> Github
-          </a>
-          <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor/issues">
-            <i class="bi bi-exclamation-diamond"></i> Issues
-          </a>
-          <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor/releases">
-            <i class="bi bi-file-diff"></i> Releases <span id="version_badge"><i class="bi bi-question-circle"></i></span>
-          </a>
-        </nav>
+      <div class="row">
+        <div class="col">
+          <h2 class='float-start'>
+            Supervisor PHP Monitor
+            <small class="text-muted">v<span id="gh_version_number"><?=$config['version']?></span></small>
+          </h2>
+          <span id="refresh_container" class='float-end pe-3'>
+            Refresh in
+            <span id="refresh_count" class="fw-bold fs-4"><?=$config['refresh']?></span>s
+            <i id='start_stop_refresh' class="bi bi-pause-circle fs-4 fw-bold ms-2 text-primary cur-point"></i>
+          </span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <nav class="nav">
+            <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor">
+              <i class="bi bi-github"></i> Github
+            </a>
+            <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor/issues">
+              <i class="bi bi-exclamation-diamond"></i> Issues
+            </a>
+            <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor/releases">
+              <i class="bi bi-file-diff"></i> Releases <span id="version_badge"><i class="bi bi-question-circle"></i></span>
+            </a>
+          </nav>
+        </div>
       </div>
     </div>
+
     <div class="container-fluid">
       <div class="row">
         <?php foreach($config['supervisor_servers'] as $name=>$details){ ?>
@@ -158,14 +171,16 @@ foreach($config['supervisor_servers'] as $name => $settings){
         }
         ?>
       </div>
+    </div>
 
+    <div class="container-fluid">
       <div class="row">
         <div class="col text-center mt-3" id="footer">
           <p>Powered by <a href="https://github.com/Innserve/supervisord_php_monitor" target="_blank">Supervisord Monitor</a></p>
         </div>
       </div>
-
     </div>
+
     <script type="text/javascript" src="jquery/jquery.min.js"></script>
     <script type="text/javascript" src="bootstrap/js/bootstrap.min.js"></script>
     <script type="text/javascript" src="js/super_monitor.js"></script>

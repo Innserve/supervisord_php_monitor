@@ -1,7 +1,11 @@
 $(init_super);
 
+let play_pause_timeout;
+
 function init_super() {
+  initialise_refresh_countdown();
   check_version();
+  $('#start_stop_refresh').click( super_play_pause );
 }
 
 function check_version() {
@@ -49,7 +53,7 @@ function handle_upgrade_results( should_i_upgrade_result, cache_results, latest_
   }
 }
 
-function should_i_upgrade (oldVer, newVer) {
+function should_i_upgrade ( oldVer, newVer ) {
   oldVer = oldVer.replace(/[^0-9.]/g, '').trim();
   newVer = newVer.replace(/[^0-9.]/g, '').trim();
 
@@ -75,4 +79,40 @@ function should_i_upgrade (oldVer, newVer) {
   }
 
   return false;
+}
+
+function initialise_refresh_countdown() {
+  const $refresh_count_dom = $('#refresh_count');
+  let refresh_count = $refresh_count_dom.text()*1;
+  if( refresh_count === 0 ) {
+    $refresh_count_dom.parent().html("<small class='text-muted'>Auto refreshing is disabled in your config</small>");
+    return; // Started at 0, never run again
+  }
+
+  refresh_count--;
+
+  if( refresh_count === 0 ) {
+    location.reload();
+  }
+  else {
+    $refresh_count_dom.text(refresh_count);
+    play_pause_timeout = setTimeout(initialise_refresh_countdown, 1000);
+  }
+}
+
+function super_play_pause() {
+  const $start_stop_refresh_btn = $('#start_stop_refresh');
+
+  if( $start_stop_refresh_btn.hasClass('bi-pause-circle') ){ // pause countdown
+    clearTimeout(play_pause_timeout);
+    $start_stop_refresh_btn.removeClass('bi-pause-circle');
+    $start_stop_refresh_btn.addClass('bi-play-circle');
+    $start_stop_refresh_btn.parent().addClass('text-muted');
+  }
+  else{ // restart countdown
+    $start_stop_refresh_btn.removeClass('bi-play-circle');
+    $start_stop_refresh_btn.addClass('bi-pause-circle');
+    $start_stop_refresh_btn.parent().removeClass('text-muted');
+    play_pause_timeout = setTimeout(initialise_refresh_countdown, 1000);
+  }
 }

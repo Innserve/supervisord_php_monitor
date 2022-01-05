@@ -1,6 +1,6 @@
 <?php
 
-// Refresh Dashboard every x seconds. 0 to disable
+// OPTIONAL: Refresh Dashboard every x seconds. 60s by default, 0 to disable
 $config['refresh'] = 60;
 
 // Set timeout connecting to remote supervisord RPC2 interface
