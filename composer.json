@@ -3,6 +3,7 @@
 	"description": "Supervisord Multi Server Monitoring Tool",
 	"license": "MIT",
 	"require": {
+		"php": ">=8.0",
 		"phpxmlrpc/phpxmlrpc": "^4",
 		"twbs/bootstrap": "^5",
 		"twbs/bootstrap-icons": "^1",
