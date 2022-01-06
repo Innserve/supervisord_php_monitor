@@ -10,10 +10,14 @@ $config['timeout'] = 3;
 $config['supervisor_servers'] = array(
   'example0' => array(
     'url' => 'http://ipaddress',
-    'port' => '9001'
+    'port' => '9001',
+    // 'username' => 'your username', // OPTIONAL
+    // 'password' => 'your password', // OPTIONAL
    ),
   'example1' => array(
     'url' => 'http://hostname',
-    'port' => '9001'
+    'port' => '9001',
+    // 'username' => 'your username', // OPTIONAL
+    // 'password' => 'your password which is obviously different', // OPTIONAL
    ),
 );

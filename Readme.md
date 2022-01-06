@@ -31,8 +31,8 @@ and overhauled the rest for PHP8+
     ```ini
     [inet_http_server]
     port=*:9001
-    username="yourusername"
-    password="yourpass"
+    username=yourusername ;optional, but do it
+    password=yourpass ;optional, but do it
     ```
     _Do not forget to restart supervisord service after changing supervisord.conf_
 5. Edit supervisord_php_monitor configuration file and add all your supervisord servers

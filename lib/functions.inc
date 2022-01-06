@@ -12,11 +12,17 @@ function do_the_request( string $server, string $method, array $params = [] ) :a
     die("Invalid server: ".$server);
   }
 
+  $this_server = $config['supervisor_servers'][$server];
+
   $encoder = new Encoder();
-  $client = new Client( $config['supervisor_servers'][$server]['url'].":".$config['supervisor_servers'][$server]['port']."/RPC2" );
+  $client = new Client( $this_server['url'].":".$this_server['port']."/RPC2" );
 
   if( $config['debug'] ?? FALSE ) {
     $client->setDebug(1);
+  }
+
+  if(isset($this_server['username']) && isset($this_server['password'])){
+    $client->setCredentials($this_server['username'], $this_server['password'], CURLAUTH_NTLM);
   }
 
   $request = new Request( 'supervisor.'.$method, $encoder->encode($params) );
