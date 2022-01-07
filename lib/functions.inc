@@ -22,7 +22,7 @@ function do_the_request( string $server, string $method, array $params = [] ) :a
   }
 
   if(isset($this_server['username']) && isset($this_server['password'])){
-    $client->setCredentials($this_server['username'], $this_server['password'], CURLAUTH_NTLM);
+    $client->setCredentials($this_server['username'], $this_server['password']);
   }
 
   $request = new Request( 'supervisor.'.$method, $encoder->encode($params) );
