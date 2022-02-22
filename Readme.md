@@ -23,9 +23,9 @@ and overhauled the rest for PHP8+
     ```
     composer install
     ```
-3. Copy config/example.config.inc to config/config.inc
+3. Copy .env.example to .env and set the SERVERS variable
     ```
-    cp config/example.config.inc config/config.inc
+    cp .env.example .env
     ```
 4. Enable/Uncomment inet_http_server (found in supervisord.conf) for all your supervisord servers.
     ```ini

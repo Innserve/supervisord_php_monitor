@@ -2,12 +2,18 @@
 declare(strict_types=1);
 
 require_once "../vendor/autoload.php";
+
+$dotenv = Dotenv\Dotenv::createImmutable(dirname(__DIR__));
+$dotenv->load();
+
+$dotenv->required('SERVERS')->notEmpty();
+
 require_once "../config/config.inc";
 require_once "../lib/functions.inc";
 
 // $config['debug'] = TRUE;
 
-$config['version'] = '1.0.3';
+$config['version'] = '1.0.4';
 
 $config['refresh'] = $config['refresh'] ?? 60;
 $config['supervisor_servers'] = $config['supervisor_servers'] ?? [];
