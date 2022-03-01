@@ -2,6 +2,12 @@
 declare(strict_types=1);
 
 require_once "../vendor/autoload.php";
+
+$dotenv = Dotenv\Dotenv::createImmutable(dirname(__DIR__));
+$dotenv->load();
+
+$dotenv->required('SERVERS')->notEmpty();
+
 require_once "../config/config.inc";
 require_once "../lib/functions.inc";
 
