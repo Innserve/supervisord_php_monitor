@@ -1,6 +1,8 @@
 $(init_super);
 
 let play_pause_timeout;
+const VERSION_CHECK_DUE_KEY = 'time_check_due';
+const VERSION_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 function init_super() {
   initialise_refresh_countdown();
@@ -12,7 +14,7 @@ function check_version() {
   let should_i_check_for_updates = true; // assume so
 
   const time_now = new Date().getTime();
-  const time_check_due = localStorage.getItem('time_check_due');
+  const time_check_due = get_version_check_due_ts();
 
   if( time_check_due !== null && time_now < time_check_due ) {
     console.log( Math.round((time_check_due-time_now)/1000/60) + " minutes until I next check versions");
@@ -20,14 +22,24 @@ function check_version() {
   }
 
   if( should_i_check_for_updates ) {
+    const tagsUrl = $('#version_badge').data('tags-url');
+    if( !tagsUrl ) {
+      handle_upgrade_results(false, false, '', 'Version check URL missing');
+      return;
+    }
+
     const options = {
-      url: "https://api.github.com/repos/Innserve/supervisord_php_monitor/tags",
+      url: tagsUrl,
       cache: false,
       dataType: 'json',
+      timeout: 5000,
     };
 
     let version_promise = $.ajax(options);
     version_promise.done( got_version_check );
+    version_promise.fail( function(_jqXHR, textStatus) {
+      handle_upgrade_results(false, false, '', 'Version check failed: ' + textStatus);
+    } );
   }
   else {
     handle_upgrade_results(false, false, '');
@@ -35,20 +47,32 @@ function check_version() {
 }
 
 function got_version_check( response ) {
+  if( !Array.isArray(response) || response.length === 0 || !response[0].name ) {
+    handle_upgrade_results(false, false, '', 'Version check returned no tags');
+    return;
+  }
+
   const latest_version = response[0].name;
   let upgrade_results = should_i_upgrade( $('#gh_version_number').text(), latest_version );
   handle_upgrade_results(upgrade_results, true, latest_version);
 }
 
-function handle_upgrade_results( should_i_upgrade_result, cache_results, latest_version ) {
+function handle_upgrade_results( should_i_upgrade_result, cache_results, latest_version, errorMessage ) {
+  if( errorMessage ) {
+    $('#version_badge')
+      .addClass('text-muted')
+      .attr('title', errorMessage)
+      .html('<i class="bi bi-exclamation-circle"></i>');
+    console.warn(errorMessage);
+    return;
+  }
+
   if( should_i_upgrade_result ){
     $('#version_badge').addClass('text-danger').html( '<i class="bi bi-x-circle-fill"></i> Update available: '+latest_version );
   } else {
     $('#version_badge').addClass('text-success').html( '<i class="bi bi-check-circle-fill"></i>' );
     if( cache_results ) { // we only set if we didn't skip the check
-      const time_now = new Date().getTime();
-      const time_next_check = time_now + (6*60*60*1000); // 6 hours
-      localStorage.setItem('time_check_due', time_next_check);
+      set_version_check_due_ts();
     }
   }
 }
@@ -65,8 +89,8 @@ function should_i_upgrade ( oldVer, newVer ) {
   const oldParts = oldVer.split('.');
   const newParts = newVer.split('.');
   for (var i = 0; i < newParts.length; i++) {
-    const a = ~~newParts[i];
-    const b = ~~oldParts[i];
+    const a = Number(newParts[i] || 0);
+    const b = Number(oldParts[i] || 0);
 
     if (a > b) {
       console.log("Version check: you are behind latest, update now");
@@ -79,6 +103,16 @@ function should_i_upgrade ( oldVer, newVer ) {
   }
 
   return false;
+}
+
+function get_version_check_due_ts() {
+  const value = localStorage.getItem(VERSION_CHECK_DUE_KEY);
+  return value === null ? null : Number(value);
+}
+
+function set_version_check_due_ts() {
+  const time_now = new Date().getTime();
+  localStorage.setItem(VERSION_CHECK_DUE_KEY, time_now + VERSION_CHECK_INTERVAL_MS);
 }
 
 function initialise_refresh_countdown() {
