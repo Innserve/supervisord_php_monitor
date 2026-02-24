@@ -1,26 +1,22 @@
 <?php
 declare(strict_types=1);
 
-require_once "../vendor/autoload.php";
-
-$dotenv = Dotenv\Dotenv::createImmutable(dirname(__DIR__));
-$dotenv->load();
-
-$dotenv->required('SERVERS')->notEmpty();
-
-require_once "../config/config.inc";
-require_once "../lib/functions.inc";
+require_once dirname(__DIR__) . "/bootstrap.php";
 
 // $config['debug'] = TRUE;
 
-$config['version'] = '1.0.4';
-
-$config['refresh'] = $config['refresh'] ?? 60;
-$config['supervisor_servers'] = $config['supervisor_servers'] ?? [];
-
 foreach($config['supervisor_servers'] as $name => $settings){
-  $config['supervisor_servers'][$name]['list'] = do_the_request($name,'getAllProcessInfo');
-  $config['supervisor_servers'][$name]['version'] = do_the_request($name,'getSupervisorVersion');
+  $started_at = microtime(TRUE);
+  $config['supervisor_servers'][$name]['list'] = call_supervisor($name,'getAllProcessInfo');
+  $config['supervisor_servers'][$name]['version'] = call_supervisor($name,'getSupervisorVersion');
+  $config['supervisor_servers'][$name]['fetch_duration_ms'] = (int) round((microtime(TRUE) - $started_at) * 1000);
+
+  app_log('dashboard.server_fetch', [
+    'server' => (string) $name,
+    'duration_ms' => $config['supervisor_servers'][$name]['fetch_duration_ms'],
+    'list_ok' => is_array($config['supervisor_servers'][$name]['list']),
+    'version_response_type' => get_debug_type($config['supervisor_servers'][$name]['version']),
+  ]);
 }
 ?>
 
@@ -53,11 +49,11 @@ foreach($config['supervisor_servers'] as $name => $settings){
         <div class="col">
           <h2 class='float-start'>
             Supervisor PHP Monitor
-            <small class="text-muted">v<span id="gh_version_number"><?=$config['version']?></span></small>
+            <small class="text-muted">v<span id="gh_version_number"><?=h($config['version'])?></span></small>
           </h2>
           <span id="refresh_container" class='float-end pe-3'>
             Refresh in
-            <span id="refresh_count" class="fw-bold fs-4"><?=$config['refresh']?></span>s
+            <span id="refresh_count" class="fw-bold fs-4"><?=h($config['refresh'])?></span>s
             <i id='start_stop_refresh' class="bi bi-pause-circle fs-4 fw-bold ms-2 text-primary cur-point"></i>
           </span>
         </div>
@@ -65,14 +61,14 @@ foreach($config['supervisor_servers'] as $name => $settings){
       <div class="row">
         <div class="col">
           <nav class="nav">
-            <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor">
+            <a class="nav-link" target="_blank" rel="noopener noreferrer" href="<?=h($config['app_meta']['repo'])?>">
               <i class="bi bi-github"></i> Github
             </a>
-            <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor/issues">
+            <a class="nav-link" target="_blank" rel="noopener noreferrer" href="<?=h($config['app_meta']['issues'])?>">
               <i class="bi bi-exclamation-diamond"></i> Issues
             </a>
-            <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor/releases">
-              <i class="bi bi-file-diff"></i> Releases <span id="version_badge"><i class="bi bi-question-circle"></i></span>
+            <a class="nav-link" target="_blank" rel="noopener noreferrer" href="<?=h($config['app_meta']['releases'])?>">
+              <i class="bi bi-file-diff"></i> Releases <span id="version_badge" data-tags-url="<?=h($config['app_meta']['tags_api'])?>"><i class="bi bi-question-circle"></i></span>
             </a>
           </nav>
         </div>
@@ -81,27 +77,33 @@ foreach($config['supervisor_servers'] as $name => $settings){
 
     <div class="container-fluid">
       <div class="row">
-        <?php foreach($config['supervisor_servers'] as $name=>$details){ ?>
+        <?php foreach($config['supervisor_servers'] as $name=>$details){
+          $list = $details['list'] ?? [];
+          $version = $details['version'] ?? 'unknown';
+          $server_url = ($details['url'] ?? '') . ':' . ($details['port'] ?? '');
+          $server_label = str_replace("http://","",(string) ($details['url'] ?? ''));
+          $server_has_error = !is_array($list);
+        ?>
         <div class="col col-lg-6 col-xl-4 col-xxl-3">
           <table class="table table-bordered table-sm table-striped">
             <thead>
               <tr>
                 <th colspan="4">
-                  <a href="<?=$details['url'].":".$details['port']?>" class='link-secondary' target="_blank">
-                    <?=$name?> (<?=str_replace("http://","",$details['url']);?>)
+                  <a href="<?=h($server_url)?>" class='link-secondary' target="_blank" rel="noopener noreferrer">
+                    <?=h($name)?> (<?=h($server_label);?>)
                   </a>
                   <?php
-                  echo '&nbsp; v<i>'.$details['version'].'</i>';
-                  if(!isset($details['list']['error'])){
+                  echo '&nbsp; v<i>' . h($version) . '</i>';
+                  if(!$server_has_error){
                   ?>
                     <span class="server-btns float-end">
-                      <a href="/control?action=stopAllProcesses&server=<?=$name?>" class="btn btn-xs btn-danger" type="button">
+                      <a href="<?=h(control_url('stopAllProcesses', (string) $name))?>" class="btn btn-xs btn-danger" type="button">
                         <i class="bi bi-stop-circle"></i> Stop all
                       </a>
-                      <a href="/control?action=startAllProcesses&server=<?=$name?>" class="btn btn-xs btn-success" type="button">
+                      <a href="<?=h(control_url('startAllProcesses', (string) $name))?>" class="btn btn-xs btn-success" type="button">
                         <i class="bi bi-play-circle"></i> Start all
                       </a>
-                      <a href="/control?action=restartAllProcesses&server=<?=$name?>" class="btn btn-xs btn-warning" type="button">
+                      <a href="<?=h(control_url('restartAllProcesses', (string) $name))?>" class="btn btn-xs btn-warning" type="button">
                         <i class="bi bi-arrow-clockwise"></i> Restart all
                       </a>
                     </span>
@@ -113,7 +115,19 @@ foreach($config['supervisor_servers'] as $name => $settings){
             </thead>
             <tbody>
               <?php
-              foreach($details['list'] as $item){
+              if( $server_has_error ){
+                ?>
+                <tr>
+                  <td colspan="4" class="table-danger">Failed to load process list: <?=h($list)?></td>
+                </tr>
+                <?php
+              }
+              else {
+              foreach($list as $item){
+                if( !is_array($item) ){
+                  continue;
+                }
+
                 if($item['group'] != $item['name']){
                   $item_name = $item['group'].":".$item['name'];
                 }
@@ -128,7 +142,9 @@ foreach($config['supervisor_servers'] as $name => $settings){
                 switch ($status) {
                   case 'RUNNING':
                     $class = 'table-success';
-                    list($pid,$uptime) = explode(",",$item['description']);
+                    if( isset($item['description']) && str_contains((string) $item['description'], ',') ){
+                      list($pid,$uptime) = explode(",", (string) $item['description'], 2);
+                    }
                     break;
                   case 'STARTING':
                     $class = 'table-warning';
@@ -147,20 +163,20 @@ foreach($config['supervisor_servers'] as $name => $settings){
                 $uptime = str_replace("uptime ","",$uptime);
                 ?>
                 <tr>
-                  <td><?=$item_name;?></td>
-                  <td style="text-align:center" class='<?=$class;?>'><?=$status;?></td>
-                  <td style="text-align:right"><?=$uptime;?></td>
+                  <td><?=h($item_name);?></td>
+                  <td style="text-align:center" class='<?=h($class);?>'><?=h($status);?></td>
+                  <td style="text-align:right"><?=h($uptime);?></td>
                   <td style="text-align:right">
                     <div class="actions">
                       <?php if($status=='RUNNING'){ ?>
-                      <a href="/control?action=stopProcess&server=<?=$name?>&worker=<?=$item_name?>" class="btn btn-xs btn-danger" type="button">
+                      <a href="<?=h(control_url('stopProcess', (string) $name, (string) $item_name))?>" class="btn btn-xs btn-danger" type="button">
                         <i class="bi bi-stop-circle"></i>
                       </a>
-                      <a href="/control?action=restartProcess&server=<?=$name?>&worker=<?=$item_name?>" class="btn btn-xs btn-warning" type="button">
+                      <a href="<?=h(control_url('restartProcess', (string) $name, (string) $item_name))?>" class="btn btn-xs btn-warning" type="button">
                         <i class="bi bi-arrow-clockwise"></i>
                       </a>
                       <?php } if( in_array( $status, ['STOPPED', 'EXITED', 'FATAL'] ) ){ ?>
-                      <a href="/control?action=startProcess&server=<?=$name?>&worker=<?=$item_name?>" class="btn btn-xs btn-success" type="button">
+                      <a href="<?=h(control_url('startProcess', (string) $name, (string) $item_name))?>" class="btn btn-xs btn-success" type="button">
                         <i class="bi bi-play-circle"></i>
                       </a>
                       <?php } ?>
@@ -168,6 +184,7 @@ foreach($config['supervisor_servers'] as $name => $settings){
                   </td>
                 </tr>
                 <?php
+              }
               }
               ?>
             </tbody>
@@ -182,7 +199,7 @@ foreach($config['supervisor_servers'] as $name => $settings){
     <div class="container-fluid">
       <div class="row">
         <div class="col text-center mt-3" id="footer">
-          <p>Powered by <a href="https://github.com/Innserve/supervisord_php_monitor" target="_blank">Supervisord Monitor</a></p>
+          <p>Powered by <a href="<?=h($config['app_meta']['repo'])?>" target="_blank" rel="noopener noreferrer">Supervisord Monitor</a></p>
         </div>
       </div>
     </div>
