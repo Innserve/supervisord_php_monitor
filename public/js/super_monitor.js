@@ -6,7 +6,6 @@ const VERSION_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 function init_super() {
   initialise_refresh_countdown();
-  check_version();
   $('#start_stop_refresh').click( super_play_pause );
 }
 

@@ -68,7 +68,7 @@ foreach($config['supervisor_servers'] as $name => $settings){
               <i class="bi bi-exclamation-diamond"></i> Issues
             </a>
             <a class="nav-link" target="_blank" rel="noopener noreferrer" href="<?=h($config['app_meta']['releases'])?>">
-              <i class="bi bi-file-diff"></i> Releases <span id="version_badge" data-tags-url="<?=h($config['app_meta']['tags_api'])?>"><i class="bi bi-question-circle"></i></span>
+              <i class="bi bi-file-diff"></i> Releases
             </a>
           </nav>
         </div>
