@@ -100,6 +100,121 @@ function do_the_request( string $server, string $method, array $params = [] ) :a
   return call_supervisor($server, $method, $params);
 }
 
+/**
+ * Build the supervisor worker identifier used in control actions.
+ *
+ * @param array $item Supervisor process payload from getAllProcessInfo.
+ * @return string
+ */
+function process_display_name( array $item ) :string {
+  $group = (string) ($item['group'] ?? '');
+  $name = (string) ($item['name'] ?? '');
+
+  if( $group !== '' && $group !== $name ){
+    return $group . ":" . $name;
+  }
+
+  return $name;
+}
+
+/**
+ * Identify terminal process states that are safe to auto-restart.
+ *
+ * @param string $status Supervisor statename value.
+ * @return bool
+ */
+function is_dead_process_status( string $status ) :bool {
+  return in_array($status, ['BACKOFF', 'EXITED', 'FATAL', 'UNKNOWN'], TRUE);
+}
+
+/**
+ * Identify process states that can be started from the UI.
+ *
+ * @param string $status Supervisor statename value.
+ * @return bool
+ */
+function can_start_process_status( string $status ) :bool {
+  return in_array($status, ['STOPPED', 'EXITED', 'FATAL', 'BACKOFF', 'UNKNOWN'], TRUE);
+}
+
+/**
+ * Map supervisor status names to table classes.
+ *
+ * @param string $status Supervisor statename value.
+ * @return string
+ */
+function process_status_class( string $status ) :string {
+  switch( $status ){
+    case 'RUNNING':
+      return 'table-success';
+    case 'STARTING':
+    case 'STOPPING':
+      return 'table-warning';
+    case 'BACKOFF':
+    case 'FATAL':
+    case 'STOPPED':
+    case 'EXITED':
+    case 'UNKNOWN':
+      return 'table-danger';
+    default:
+      return 'table-secondary';
+  }
+}
+
+/**
+ * Expose the supervisor-provided reason string for dead processes.
+ *
+ * @param array $item Supervisor process payload from getAllProcessInfo.
+ * @return string|null
+ */
+function dead_process_note( array $item ) :?string {
+  $status = (string) ($item['statename'] ?? '');
+
+  if( !is_dead_process_status($status) ){
+    return NULL;
+  }
+
+  $spawn_error = trim((string) ($item['spawnerr'] ?? ''));
+  if( $spawn_error !== '' ){
+    return $spawn_error;
+  }
+
+  $description = trim((string) ($item['description'] ?? ''));
+  if( $description !== '' ){
+    return $description;
+  }
+
+  return NULL;
+}
+
+/**
+ * Fetch only restartable dead processes for a supervisor host.
+ *
+ * @param string $server Configured supervisor server key.
+ * @return array
+ */
+function dead_processes_for_server( string $server ) :array {
+  $list = call_supervisor($server, 'getAllProcessInfo');
+
+  if( !is_array($list) ){
+    throw new RuntimeException(is_string($list) ? $list : 'Failed to load process list');
+  }
+
+  $dead_processes = [];
+
+  foreach( $list as $item ){
+    if( !is_array($item) ){
+      continue;
+    }
+
+    if( is_dead_process_status((string) ($item['statename'] ?? '')) ){
+      $dead_processes[] = $item;
+    }
+  }
+
+  return $dead_processes;
+}
+
 function supervisor_action_map() :array {
   return [
     'startProcess' => [
@@ -134,6 +249,10 @@ function supervisor_action_map() :array {
         ['method' => 'startAllProcesses'],
       ],
     ],
+    'restartDeadProcesses' => [
+      'scope' => 'server',
+      'rpc_sequence' => [],
+    ],
   ];
 }
 
@@ -165,6 +284,36 @@ function dispatch_control_action( string $server, string $action, ?string $worke
 
   if( !isset($map[$action]) ){
     throw new InvalidArgumentException("Unknown action");
+  }
+
+  if( $action === 'restartDeadProcesses' ){
+    $dead_processes = dead_processes_for_server($server);
+
+    app_log('control.restart_dead_scan', [
+      'server' => $server,
+      'dead_process_count' => count($dead_processes),
+    ]);
+
+    foreach( $dead_processes as $item ){
+      $dead_worker = process_display_name($item);
+      $started_at = microtime(TRUE);
+      $result = call_supervisor($server, 'startProcess', [$dead_worker, 1]);
+      $duration_ms = (int) round((microtime(TRUE) - $started_at) * 1000);
+      $ok = is_array($result) || in_array($result, ['True', 'False'], TRUE);
+
+      app_log('control.rpc_call', [
+        'server' => $server,
+        'action' => $action,
+        'rpc_method' => 'startProcess',
+        'worker' => $dead_worker,
+        'duration_ms' => $duration_ms,
+        'ok' => $ok,
+        'result_type' => get_debug_type($result),
+        'error' => $ok ? NULL : (is_string($result) ? $result : NULL),
+      ]);
+    }
+
+    return;
   }
 
   foreach( $map[$action]['rpc_sequence'] as $step ){

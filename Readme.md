@@ -11,7 +11,9 @@ and overhauled the rest for PHP8+
 
 * Monitor unlimited supervisord servers and processes
 * Start/Stop/Restart process
+* Restart only dead processes per server
 * Monitor process uptime status
+* Surface unreachable servers as non-blocking alerts
 
 ## Install
 

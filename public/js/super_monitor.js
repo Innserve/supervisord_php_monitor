@@ -6,7 +6,31 @@ const VERSION_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 function init_super() {
   initialise_refresh_countdown();
+  initialise_server_toggles();
   $('#start_stop_refresh').click( super_play_pause );
+}
+
+function initialise_server_toggles() {
+  $('.server-toggle').click( function() {
+    const $button = $(this);
+    const target = $button.data('target');
+    const $panel = $('#' + target);
+
+    if( $panel.length === 0 ) {
+      return;
+    }
+
+    const isExpanded = $button.attr('aria-expanded') === 'true';
+    const nextExpanded = !isExpanded;
+
+    $panel.prop('hidden', !nextExpanded);
+    $button.attr('aria-expanded', nextExpanded ? 'true' : 'false');
+    $button.html(
+      nextExpanded
+        ? '<i class="bi bi-chevron-up"></i> Collapse'
+        : '<i class="bi bi-chevron-down"></i> Expand'
+    );
+  } );
 }
 
 function check_version() {

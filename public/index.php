@@ -18,6 +18,47 @@ foreach($config['supervisor_servers'] as $name => $settings){
     'version_response_type' => get_debug_type($config['supervisor_servers'][$name]['version']),
   ]);
 }
+
+$failed_servers = [];
+$healthy_servers = [];
+
+foreach( $config['supervisor_servers'] as $name => $details ){
+  $list = $details['list'] ?? [];
+  $version = $details['version'] ?? 'unknown';
+  $server_url = ($details['url'] ?? '') . ':' . ($details['port'] ?? '');
+  $server_label = str_replace("http://","",(string) ($details['url'] ?? ''));
+
+  if( !is_array($list) ){
+    $failed_servers[] = [
+      'name' => (string) $name,
+      'label' => $server_label,
+      'error' => (string) $list,
+    ];
+    continue;
+  }
+
+  $dead_process_count = 0;
+
+  foreach( $list as $item ){
+    if( !is_array($item) ){
+      continue;
+    }
+
+    if( is_dead_process_status((string) ($item['statename'] ?? '')) ){
+      $dead_process_count++;
+    }
+  }
+
+  $healthy_servers[] = [
+    'collapse_id' => 'server-' . preg_replace('/[^a-z0-9]+/i', '-', (string) $name),
+    'name' => (string) $name,
+    'label' => $server_label,
+    'server_url' => $server_url,
+    'version' => (string) $version,
+    'list' => $list,
+    'dead_process_count' => $dead_process_count,
+  ];
+}
 ?>
 
 <!doctype html>
@@ -76,123 +117,124 @@ foreach($config['supervisor_servers'] as $name => $settings){
     </div>
 
     <div class="container-fluid">
+      <?php if( $failed_servers !== [] ){ ?>
       <div class="row">
-        <?php foreach($config['supervisor_servers'] as $name=>$details){
-          $list = $details['list'] ?? [];
-          $version = $details['version'] ?? 'unknown';
-          $server_url = ($details['url'] ?? '') . ':' . ($details['port'] ?? '');
-          $server_label = str_replace("http://","",(string) ($details['url'] ?? ''));
-          $server_has_error = !is_array($list);
-        ?>
-        <div class="col col-lg-6 col-xl-4 col-xxl-3">
-          <table class="table table-bordered table-sm table-striped">
-            <thead>
-              <tr>
-                <th colspan="4">
-                  <a href="<?=h($server_url)?>" class='link-secondary' target="_blank" rel="noopener noreferrer">
-                    <?=h($name)?> (<?=h($server_label);?>)
-                  </a>
-                  <?php
-                  echo '&nbsp; v<i>' . h($version) . '</i>';
-                  if(!$server_has_error){
-                  ?>
-                    <span class="server-btns float-end">
-                      <a href="<?=h(control_url('stopAllProcesses', (string) $name))?>" class="btn btn-xs btn-danger" type="button">
-                        <i class="bi bi-stop-circle"></i> Stop all
-                      </a>
-                      <a href="<?=h(control_url('startAllProcesses', (string) $name))?>" class="btn btn-xs btn-success" type="button">
-                        <i class="bi bi-play-circle"></i> Start all
-                      </a>
-                      <a href="<?=h(control_url('restartAllProcesses', (string) $name))?>" class="btn btn-xs btn-warning" type="button">
-                        <i class="bi bi-arrow-clockwise"></i> Restart all
-                      </a>
-                    </span>
-                  <?php
-                  }
-                  ?>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php
-              if( $server_has_error ){
-                ?>
-                <tr>
-                  <td colspan="4" class="table-danger">Failed to load process list: <?=h($list)?></td>
-                </tr>
-                <?php
-              }
-              else {
-              foreach($list as $item){
-                if( !is_array($item) ){
-                  continue;
-                }
-
-                if($item['group'] != $item['name']){
-                  $item_name = $item['group'].":".$item['name'];
-                }
-                else {
-                  $item_name = $item['name'];
-                }
-
-                $pid = '&nbsp;';
-                $uptime = '&nbsp;';
-                $status = $item['statename'];
-
-                switch ($status) {
-                  case 'RUNNING':
-                    $class = 'table-success';
-                    if( isset($item['description']) && str_contains((string) $item['description'], ',') ){
-                      list($pid,$uptime) = explode(",", (string) $item['description'], 2);
-                    }
-                    break;
-                  case 'STARTING':
-                    $class = 'table-warning';
-                    break;
-                  case 'FATAL':
-                    $class = 'table-danger';
-                    break;
-                  case 'STOPPED':
-                    $class = 'table-danger';
-                    break;
-                  default:
-                    $class = 'table-secondary';
-                    break;
-                }
-
-                $uptime = str_replace("uptime ","",$uptime);
-                ?>
-                <tr>
-                  <td><?=h($item_name);?></td>
-                  <td style="text-align:center" class='<?=h($class);?>'><?=h($status);?></td>
-                  <td style="text-align:right"><?=h($uptime);?></td>
-                  <td style="text-align:right">
-                    <div class="actions">
-                      <?php if($status=='RUNNING'){ ?>
-                      <a href="<?=h(control_url('stopProcess', (string) $name, (string) $item_name))?>" class="btn btn-xs btn-danger" type="button">
-                        <i class="bi bi-stop-circle"></i>
-                      </a>
-                      <a href="<?=h(control_url('restartProcess', (string) $name, (string) $item_name))?>" class="btn btn-xs btn-warning" type="button">
-                        <i class="bi bi-arrow-clockwise"></i>
-                      </a>
-                      <?php } if( in_array( $status, ['STOPPED', 'EXITED', 'FATAL'] ) ){ ?>
-                      <a href="<?=h(control_url('startProcess', (string) $name, (string) $item_name))?>" class="btn btn-xs btn-success" type="button">
-                        <i class="bi bi-play-circle"></i>
-                      </a>
-                      <?php } ?>
-                    </div>
-                  </td>
-                </tr>
-                <?php
-              }
-              }
-              ?>
-            </tbody>
-          </table>
+        <div class="col-12">
+          <div class="server-error-strip" role="status" aria-live="polite">
+            <?php foreach( $failed_servers as $failed_server ){ ?>
+            <span class="server-error-pill">
+              <i class="bi bi-plug-fill"></i>
+              Connection to <?=h($failed_server['name'])?> (<?=h($failed_server['label'])?>) failed:
+              <?=h($failed_server['error'])?>
+            </span>
+            <?php } ?>
+          </div>
         </div>
-        <?php
-        }
-        ?>
+      </div>
+      <?php } ?>
+
+      <div class="row g-3">
+          <?php foreach( $healthy_servers as $server ){ ?>
+          <div class="col-12 col-lg-6 col-xl-4">
+          <section class="server-panel">
+            <div class="server-panel-header">
+              <div class="server-panel-meta">
+                <a href="<?=h($server['server_url'])?>" class="link-secondary fw-semibold" target="_blank" rel="noopener noreferrer">
+                  <?=h($server['name'])?> (<?=h($server['label'])?>)
+                </a>
+                <span class="text-muted">v<?=h($server['version'])?></span>
+                <span class="server-dead-badge<?= $server['dead_process_count'] === 0 ? ' server-dead-badge-ok' : '' ?>">
+                  <i class="bi <?= $server['dead_process_count'] === 0 ? 'bi-check-circle-fill' : 'bi-x-octagon-fill' ?>"></i>
+                  <?=h((string) $server['dead_process_count'])?> dead
+                </span>
+              </div>
+              <div class="server-panel-actions">
+                <?php if( $server['dead_process_count'] > 0 ){ ?>
+                <a href="<?=h(control_url('restartDeadProcesses', $server['name']))?>" class="btn btn-xs btn-outline-danger" type="button">
+                  <i class="bi bi-arrow-repeat"></i> Restart dead
+                </a>
+                <?php } ?>
+                <a href="<?=h(control_url('stopAllProcesses', $server['name']))?>" class="btn btn-xs btn-danger" type="button">
+                  <i class="bi bi-stop-circle"></i> Stop all
+                </a>
+                <a href="<?=h(control_url('startAllProcesses', $server['name']))?>" class="btn btn-xs btn-success" type="button">
+                  <i class="bi bi-play-circle"></i> Start all
+                </a>
+                <a href="<?=h(control_url('restartAllProcesses', $server['name']))?>" class="btn btn-xs btn-warning" type="button">
+                  <i class="bi bi-arrow-clockwise"></i> Restart all
+                </a>
+                <button class="btn btn-xs btn-secondary server-toggle" type="button" data-target="<?=h($server['collapse_id'])?>" aria-expanded="false">
+                  <i class="bi bi-chevron-down"></i> Expand
+                </button>
+              </div>
+            </div>
+
+            <div id="<?=h($server['collapse_id'])?>" class="server-panel-body" hidden>
+              <table class="table table-bordered table-sm table-striped mb-0">
+                <thead>
+                  <tr>
+                    <th>Process</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-end">Uptime</th>
+                    <th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach( $server['list'] as $item ){
+                    if( !is_array($item) ){
+                      continue;
+                    }
+
+                    $item_name = process_display_name($item);
+                    $status = (string) ($item['statename'] ?? 'UNKNOWN');
+                    $class = process_status_class($status);
+                    $uptime = '&nbsp;';
+
+                    if(
+                      $status === 'RUNNING'
+                      && isset($item['description'])
+                      && str_contains((string) $item['description'], ',')
+                    ){
+                      [, $uptime] = explode(",", (string) $item['description'], 2);
+                    }
+
+                    $uptime = str_replace("uptime ","",$uptime);
+                    $dead_note = dead_process_note($item);
+                  ?>
+                  <tr>
+                    <td>
+                      <div><?=h($item_name);?></div>
+                      <?php if( $dead_note !== NULL ){ ?>
+                      <div class="process-note"><?=h($dead_note)?></div>
+                      <?php } ?>
+                    </td>
+                    <td class="text-center <?=h($class);?>"><?=h($status);?></td>
+                    <td class="text-end"><?=h($uptime);?></td>
+                    <td class="text-end">
+                      <div class="actions">
+                        <?php if( $status === 'RUNNING' ){ ?>
+                        <a href="<?=h(control_url('stopProcess', $server['name'], $item_name))?>" class="btn btn-xs btn-danger" type="button">
+                          <i class="bi bi-stop-circle"></i>
+                        </a>
+                        <a href="<?=h(control_url('restartProcess', $server['name'], $item_name))?>" class="btn btn-xs btn-warning" type="button">
+                          <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+                        <?php } ?>
+                        <?php if( can_start_process_status($status) ){ ?>
+                        <a href="<?=h(control_url('startProcess', $server['name'], $item_name))?>" class="btn btn-xs btn-success" type="button">
+                          <i class="bi bi-play-circle"></i>
+                        </a>
+                        <?php } ?>
+                      </div>
+                    </td>
+                  </tr>
+                  <?php } ?>
+                </tbody>
+              </table>
+            </div>
+          </section>
+          </div>
+          <?php } ?>
       </div>
     </div>
 
