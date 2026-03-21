@@ -311,6 +311,127 @@ function dead_processes_for_server( string $server ) :array {
   return $dead_processes;
 }
 
+/**
+ * Return the shared temp file path used for the global restart cooldown.
+ *
+ * @return string
+ */
+function global_restart_lock_file() :string {
+  return sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'supervisord_php_monitor_restart_all_servers.lock';
+}
+
+/**
+ * Return the minimum number of seconds between global restart runs.
+ *
+ * @return int
+ */
+function global_restart_cooldown_seconds() :int {
+  return 300;
+}
+
+/**
+ * Read the cooldown expiry timestamp from an open lock file handle.
+ *
+ * @param resource $handle Open cooldown file handle.
+ * @return int
+ */
+function read_global_restart_lock_until( $handle ) :int {
+  rewind($handle);
+  $raw_value = trim((string) stream_get_contents($handle));
+
+  return ctype_digit($raw_value) ? (int) $raw_value : 0;
+}
+
+/**
+ * Persist the cooldown expiry timestamp to an open lock file handle.
+ *
+ * @param resource $handle Open cooldown file handle.
+ * @param int $locked_until Unix timestamp when the cooldown expires.
+ * @return void
+ */
+function write_global_restart_lock_until( $handle, int $locked_until ) :void {
+  rewind($handle);
+  ftruncate($handle, 0);
+  fwrite($handle, (string) $locked_until);
+  fflush($handle);
+}
+
+/**
+ * Report whether the global restart action is currently locked.
+ *
+ * @return array
+ * @throws RuntimeException When the cooldown file cannot be accessed.
+ */
+function global_restart_lock_status() :array {
+  $handle = fopen(global_restart_lock_file(), 'c+');
+
+  if( $handle === FALSE ){
+    throw new RuntimeException("Unable to open global restart cooldown file");
+  }
+
+  if( !flock($handle, LOCK_EX) ){
+    fclose($handle);
+    throw new RuntimeException("Unable to lock global restart cooldown file");
+  }
+
+  $locked_until = read_global_restart_lock_until($handle);
+  $now = time();
+
+  flock($handle, LOCK_UN);
+  fclose($handle);
+
+  return [
+    'is_locked' => $locked_until > $now,
+    'locked_until' => $locked_until,
+    'seconds_remaining' => max(0, $locked_until - $now),
+  ];
+}
+
+/**
+ * Attempt to claim the global restart cooldown window for a new run.
+ *
+ * @return array
+ * @throws RuntimeException When the cooldown file cannot be accessed.
+ */
+function claim_global_restart_lock() :array {
+  $handle = fopen(global_restart_lock_file(), 'c+');
+
+  if( $handle === FALSE ){
+    throw new RuntimeException("Unable to open global restart cooldown file");
+  }
+
+  if( !flock($handle, LOCK_EX) ){
+    fclose($handle);
+    throw new RuntimeException("Unable to lock global restart cooldown file");
+  }
+
+  $locked_until = read_global_restart_lock_until($handle);
+  $now = time();
+
+  if( $locked_until > $now ){
+    flock($handle, LOCK_UN);
+    fclose($handle);
+
+    return [
+      'allowed' => FALSE,
+      'locked_until' => $locked_until,
+      'seconds_remaining' => $locked_until - $now,
+    ];
+  }
+
+  $locked_until = $now + global_restart_cooldown_seconds();
+  write_global_restart_lock_until($handle, $locked_until);
+
+  flock($handle, LOCK_UN);
+  fclose($handle);
+
+  return [
+    'allowed' => TRUE,
+    'locked_until' => $locked_until,
+    'seconds_remaining' => $locked_until - $now,
+  ];
+}
+
 function supervisor_action_map() :array {
   return [
     'startProcess' => [
@@ -349,6 +470,10 @@ function supervisor_action_map() :array {
       'scope' => 'server',
       'rpc_sequence' => [],
     ],
+    'restartAllServers' => [
+      'scope' => 'global',
+      'rpc_sequence' => [],
+    ],
   ];
 }
 
@@ -359,6 +484,18 @@ function is_valid_control_action( string $action ) :bool {
 function action_requires_worker( string $action ) :bool {
   $map = supervisor_action_map();
   return isset($map[$action]) && $map[$action]['scope'] === 'worker';
+}
+
+/**
+ * Identify whether a control action requires a specific server target.
+ *
+ * @param string $action Requested control action.
+ * @return bool
+ */
+function action_requires_server( string $action ) :bool {
+  $map = supervisor_action_map();
+
+  return isset($map[$action]) && $map[$action]['scope'] !== 'global';
 }
 
 function validate_control_identifier( string $value, string $label ) :string {
@@ -380,6 +517,24 @@ function dispatch_control_action( string $server, string $action, ?string $worke
 
   if( !isset($map[$action]) ){
     throw new InvalidArgumentException("Unknown action");
+  }
+
+  if( $action === 'restartAllServers' ){
+    global $config;
+
+    app_log('control.global_restart_started', [
+      'server_count' => count($config['supervisor_servers']),
+    ]);
+
+    foreach( array_keys($config['supervisor_servers']) as $server_name ){
+      dispatch_control_action((string) $server_name, 'restartAllProcesses');
+    }
+
+    app_log('control.global_restart_finished', [
+      'server_count' => count($config['supervisor_servers']),
+    ]);
+
+    return;
   }
 
   if( $action === 'restartDeadProcesses' ){

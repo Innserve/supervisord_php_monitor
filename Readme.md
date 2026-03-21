@@ -12,6 +12,7 @@ and overhauled the rest for PHP8+
 * Monitor unlimited supervisord servers and processes
 * Start/Stop/Restart process
 * Restart only dead processes per server
+* Restart all supervised processes across every configured server with a 5-minute cooldown
 * Monitor process uptime status
 * Surface unreachable servers as non-blocking alerts
 * Show longest-running and shortest-running processes in each server header

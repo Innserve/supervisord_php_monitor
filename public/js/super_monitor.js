@@ -7,8 +7,19 @@ const PANEL_STATE_KEY = 'super_monitor_expanded_panels';
 
 function init_super() {
   initialise_refresh_countdown();
+  initialise_confirmation_prompts();
   initialise_server_toggles();
   $('#start_stop_refresh').click( super_play_pause );
+}
+
+function initialise_confirmation_prompts() {
+  $('.confirmable-form').submit( function(event) {
+    const confirmationMessage = $(this).attr('data-confirm-message');
+
+    if( confirmationMessage && !window.confirm(confirmationMessage) ) {
+      event.preventDefault();
+    }
+  } );
 }
 
 function toggle_server_panel( $button ) {

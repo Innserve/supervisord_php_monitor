@@ -24,6 +24,38 @@ $healthy_servers = [];
 $page_refreshed_at = new DateTimeImmutable('now');
 $page_refreshed_at_iso = $page_refreshed_at->format(DateTimeInterface::ATOM);
 $page_refreshed_at_display = $page_refreshed_at->format('H:i:s');
+$global_restart_lock_error = NULL;
+$global_restart_lock = [
+  'is_locked' => FALSE,
+  'locked_until' => 0,
+  'seconds_remaining' => 0,
+];
+$global_restart_notice = (string) ($_GET['control_notice'] ?? '');
+$global_restart_locked_until_display = NULL;
+$global_restart_locked_until_iso = NULL;
+$global_restart_remaining_display = NULL;
+
+try {
+  $global_restart_lock = global_restart_lock_status();
+}
+catch( RuntimeException $e ) {
+  $global_restart_lock_error = 'Global restart is temporarily unavailable.';
+  $global_restart_lock['is_locked'] = TRUE;
+
+  app_log('dashboard.global_restart_lock_status_failed', [
+    'error' => $e->getMessage(),
+  ]);
+}
+
+if( $global_restart_lock['is_locked'] ){
+  $minutes_remaining = intdiv($global_restart_lock['seconds_remaining'], 60);
+  $seconds_remaining = $global_restart_lock['seconds_remaining'] % 60;
+  $global_restart_remaining_display = sprintf('%d:%02d', $minutes_remaining, $seconds_remaining);
+  $global_restart_locked_until = (new DateTimeImmutable())
+    ->setTimestamp((int) $global_restart_lock['locked_until']);
+  $global_restart_locked_until_iso = $global_restart_locked_until->format(DateTimeInterface::ATOM);
+  $global_restart_locked_until_display = $global_restart_locked_until->format('H:i:s');
+}
 
 foreach( $config['supervisor_servers'] as $name => $details ){
   $list = $details['list'] ?? [];
@@ -141,6 +173,57 @@ foreach( $config['supervisor_servers'] as $name => $details ){
               <i class="bi bi-file-diff"></i> Releases
             </a>
           </nav>
+        </div>
+      </div>
+      <div class="row mt-2">
+        <div class="col">
+          <?php if( $global_restart_lock_error !== NULL ){ ?>
+          <div class="alert alert-secondary py-2 mb-2" role="status">
+            <?=h($global_restart_lock_error)?>
+          </div>
+          <?php } elseif( $global_restart_notice === 'restart-all-servers-started' ){ ?>
+          <div class="alert alert-warning py-2 mb-2" role="status">
+            Global restart started for all configured servers.
+          </div>
+          <?php } elseif( $global_restart_notice === 'restart-all-servers-locked' && $global_restart_remaining_display !== NULL ){ ?>
+          <div class="alert alert-secondary py-2 mb-2" role="status">
+            Global restart is locked for another <?=h($global_restart_remaining_display)?>.
+          </div>
+          <?php } ?>
+
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <form
+              method="post"
+              action="/control"
+              class="confirmable-form mb-0"
+              data-confirm-message="Restart all supervised processes on every configured server? This action is limited to once every 5 minutes."
+            >
+              <input type="hidden" name="action" value="restartAllServers"/>
+              <button
+                class="btn btn-sm btn-danger"
+                type="submit"
+                <?= $global_restart_lock['is_locked'] || $global_restart_lock_error !== NULL ? 'disabled aria-disabled="true"' : '' ?>
+              >
+                <i class="bi bi-exclamation-triangle-fill"></i> Restart all servers
+              </button>
+            </form>
+
+            <?php if( $global_restart_lock_error !== NULL ){ ?>
+            <small class="text-muted">
+              Global restart cannot be scheduled until the cooldown state can be read.
+            </small>
+            <?php } elseif( $global_restart_lock['is_locked'] && $global_restart_locked_until_display !== NULL && $global_restart_remaining_display !== NULL ){ ?>
+            <small class="text-muted">
+              Locked for <?=h($global_restart_remaining_display)?>.
+              Next available at
+              <time datetime="<?=h($global_restart_locked_until_iso)?>"><?=h($global_restart_locked_until_display)?></time>.
+            </small>
+            <?php } else { ?>
+            <small class="text-muted">
+              Restarts all supervised processes on every configured server.
+            </small>
+            <?php } ?>
+          </div>
         </div>
       </div>
     </div>
