@@ -118,6 +118,102 @@ function process_display_name( array $item ) :string {
 }
 
 /**
+ * Extract the rendered uptime label for a running supervisor process.
+ *
+ * @param array $item Supervisor process payload from getAllProcessInfo.
+ * @return string|null
+ */
+function running_process_uptime_label( array $item ) :?string {
+  if( (string) ($item['statename'] ?? '') !== 'RUNNING' ){
+    return NULL;
+  }
+
+  $description = (string) ($item['description'] ?? '');
+
+  if( !str_contains($description, ',') ){
+    return NULL;
+  }
+
+  [, $uptime] = explode(',', $description, 2);
+  $uptime = trim(str_replace('uptime ', '', $uptime));
+
+  return $uptime === '' ? NULL : $uptime;
+}
+
+/**
+ * Convert supervisor uptime labels into seconds for header comparisons.
+ *
+ * @param string $uptime Supervisor uptime label.
+ * @return int|null
+ */
+function running_process_uptime_seconds( string $uptime ) :?int {
+  $uptime = trim($uptime);
+
+  if(
+    preg_match(
+      '/^(?:(\d+)\s+days?,\s+)?(\d{1,2}):(\d{2}):(\d{2})$/',
+      $uptime,
+      $matches
+    ) !== 1
+  ){
+    return NULL;
+  }
+
+  $days = isset($matches[1]) ? (int) $matches[1] : 0;
+  $hours = (int) $matches[2];
+  $minutes = (int) $matches[3];
+  $seconds = (int) $matches[4];
+
+  return ($days * 86400) + ($hours * 3600) + ($minutes * 60) + $seconds;
+}
+
+/**
+ * Summarise the shortest and longest running processes for header display.
+ *
+ * @param array $list Supervisor process list.
+ * @return array
+ */
+function running_process_extremes( array $list ) :array {
+  $longest = NULL;
+  $shortest = NULL;
+
+  foreach( $list as $item ){
+    if( !is_array($item) ){
+      continue;
+    }
+
+    $uptime = running_process_uptime_label($item);
+    if( $uptime === NULL ){
+      continue;
+    }
+
+    $seconds = running_process_uptime_seconds($uptime);
+    if( $seconds === NULL ){
+      continue;
+    }
+
+    $summary = [
+      'name' => process_display_name($item),
+      'uptime' => $uptime,
+      'seconds' => $seconds,
+    ];
+
+    if( $longest === NULL || $summary['seconds'] > $longest['seconds'] ){
+      $longest = $summary;
+    }
+
+    if( $shortest === NULL || $summary['seconds'] < $shortest['seconds'] ){
+      $shortest = $summary;
+    }
+  }
+
+  return [
+    'longest' => $longest,
+    'shortest' => $shortest,
+  ];
+}
+
+/**
  * Identify terminal process states that are safe to auto-restart.
  *
  * @param string $status Supervisor statename value.

@@ -10,26 +10,48 @@ function init_super() {
   $('#start_stop_refresh').click( super_play_pause );
 }
 
+function toggle_server_panel( $button ) {
+  const target = $button.data('target');
+  const $panel = $('#' + target);
+
+  if( $panel.length === 0 ) {
+    return;
+  }
+
+  const isExpanded = $button.attr('aria-expanded') === 'true';
+  const nextExpanded = !isExpanded;
+
+  $panel.prop('hidden', !nextExpanded);
+  $button.attr('aria-expanded', nextExpanded ? 'true' : 'false');
+  $button.html(
+    nextExpanded
+      ? '<i class="bi bi-chevron-up"></i> Collapse'
+      : '<i class="bi bi-chevron-down"></i> Expand'
+  );
+}
+
 function initialise_server_toggles() {
   $('.server-toggle').click( function() {
     const $button = $(this);
-    const target = $button.data('target');
-    const $panel = $('#' + target);
+    toggle_server_panel($button);
+  } );
 
-    if( $panel.length === 0 ) {
+  $('.server-panel-header').click( function(event) {
+    const $target = $(event.target);
+
+    if( $target.closest('a').length > 0 ) {
       return;
     }
 
-    const isExpanded = $button.attr('aria-expanded') === 'true';
-    const nextExpanded = !isExpanded;
+    if( $target.closest('button').length > 0 && !$target.closest('.server-toggle').length ) {
+      return;
+    }
 
-    $panel.prop('hidden', !nextExpanded);
-    $button.attr('aria-expanded', nextExpanded ? 'true' : 'false');
-    $button.html(
-      nextExpanded
-        ? '<i class="bi bi-chevron-up"></i> Collapse'
-        : '<i class="bi bi-chevron-down"></i> Expand'
-    );
+    if( $target.closest('.server-toggle').length > 0 ) {
+      return;
+    }
+
+    toggle_server_panel($(this).find('.server-toggle').first());
   } );
 }
 

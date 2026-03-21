@@ -14,6 +14,7 @@ and overhauled the rest for PHP8+
 * Restart only dead processes per server
 * Monitor process uptime status
 * Surface unreachable servers as non-blocking alerts
+* Show longest-running and shortest-running processes in each server header
 
 ## Install
 

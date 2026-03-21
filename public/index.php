@@ -38,6 +38,7 @@ foreach( $config['supervisor_servers'] as $name => $details ){
   }
 
   $dead_process_count = 0;
+  $running_extremes = running_process_extremes($list);
 
   foreach( $list as $item ){
     if( !is_array($item) ){
@@ -57,6 +58,7 @@ foreach( $config['supervisor_servers'] as $name => $details ){
     'version' => (string) $version,
     'list' => $list,
     'dead_process_count' => $dead_process_count,
+    'running_extremes' => $running_extremes,
   ];
 }
 ?>
@@ -135,34 +137,57 @@ foreach( $config['supervisor_servers'] as $name => $details ){
 
       <div class="row g-3">
           <?php foreach( $healthy_servers as $server ){ ?>
-          <div class="col-12 col-lg-6 col-xl-4">
+          <div class="col-12 col-lg-6">
           <section class="server-panel">
-            <div class="server-panel-header">
+            <div class="server-panel-header" data-target="<?=h($server['collapse_id'])?>">
               <div class="server-panel-meta">
-                <a href="<?=h($server['server_url'])?>" class="link-secondary fw-semibold" target="_blank" rel="noopener noreferrer">
+                <span class="server-panel-name fw-semibold">
                   <?=h($server['name'])?> (<?=h($server['label'])?>)
-                </a>
+                </span>
                 <span class="text-muted">v<?=h($server['version'])?></span>
                 <span class="server-dead-badge<?= $server['dead_process_count'] === 0 ? ' server-dead-badge-ok' : '' ?>">
                   <i class="bi <?= $server['dead_process_count'] === 0 ? 'bi-check-circle-fill' : 'bi-x-octagon-fill' ?>"></i>
                   <?=h((string) $server['dead_process_count'])?> dead
                 </span>
+                <span class="server-runtime-summary">
+                  Longest running:
+                  <?php if( $server['running_extremes']['longest'] !== NULL ){ ?>
+                  <span class="fw-semibold"><?=h($server['running_extremes']['longest']['name'])?></span>
+                  <span class="text-muted">(<?=h($server['running_extremes']['longest']['uptime'])?>)</span>
+                  <?php } else { ?>
+                  <span class="text-muted">none</span>
+                  <?php } ?>
+                </span>
+                <span class="server-runtime-summary">
+                  Shortest running:
+                  <?php if( $server['running_extremes']['shortest'] !== NULL ){ ?>
+                  <span class="fw-semibold"><?=h($server['running_extremes']['shortest']['name'])?></span>
+                  <span class="text-muted">(<?=h($server['running_extremes']['shortest']['uptime'])?>)</span>
+                  <?php } else { ?>
+                  <span class="text-muted">none</span>
+                  <?php } ?>
+                </span>
               </div>
               <div class="server-panel-actions">
-                <?php if( $server['dead_process_count'] > 0 ){ ?>
-                <a href="<?=h(control_url('restartDeadProcesses', $server['name']))?>" class="btn btn-xs btn-outline-danger" type="button">
-                  <i class="bi bi-arrow-repeat"></i> Restart dead
-                </a>
-                <?php } ?>
-                <a href="<?=h(control_url('stopAllProcesses', $server['name']))?>" class="btn btn-xs btn-danger" type="button">
-                  <i class="bi bi-stop-circle"></i> Stop all
-                </a>
-                <a href="<?=h(control_url('startAllProcesses', $server['name']))?>" class="btn btn-xs btn-success" type="button">
-                  <i class="bi bi-play-circle"></i> Start all
-                </a>
-                <a href="<?=h(control_url('restartAllProcesses', $server['name']))?>" class="btn btn-xs btn-warning" type="button">
-                  <i class="bi bi-arrow-clockwise"></i> Restart all
-                </a>
+                <div class="server-panel-action-list">
+                  <a href="<?=h($server['server_url'])?>" class="btn btn-xs btn-outline-secondary" type="button" target="_blank" rel="noopener noreferrer" title="Open supervisor UI" aria-label="Open supervisor UI for <?=h($server['name'])?>">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                  </a>
+                  <?php if( $server['dead_process_count'] > 0 ){ ?>
+                  <a href="<?=h(control_url('restartDeadProcesses', $server['name']))?>" class="btn btn-xs btn-outline-danger" type="button">
+                    <i class="bi bi-arrow-repeat"></i> Restart dead
+                  </a>
+                  <?php } ?>
+                  <a href="<?=h(control_url('stopAllProcesses', $server['name']))?>" class="btn btn-xs btn-danger" type="button">
+                    <i class="bi bi-stop-circle"></i> Stop all
+                  </a>
+                  <a href="<?=h(control_url('startAllProcesses', $server['name']))?>" class="btn btn-xs btn-success" type="button">
+                    <i class="bi bi-play-circle"></i> Start all
+                  </a>
+                  <a href="<?=h(control_url('restartAllProcesses', $server['name']))?>" class="btn btn-xs btn-warning" type="button">
+                    <i class="bi bi-arrow-clockwise"></i> Restart all
+                  </a>
+                </div>
                 <button class="btn btn-xs btn-secondary server-toggle" type="button" data-target="<?=h($server['collapse_id'])?>" aria-expanded="false">
                   <i class="bi bi-chevron-down"></i> Expand
                 </button>
