@@ -45,7 +45,26 @@
   padding: 0.85rem 1rem;
   background: #f8f9fa;
   border-bottom: 1px solid #dee2e6;
+}
+
+.server-panel-summary {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0.375rem;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
+}
+
+.server-panel-summary:focus-visible,
+.server-toggle:focus-visible {
+  outline: 2px solid #0d6efd;
+  outline-offset: 2px;
 }
 
 .server-panel-meta {
@@ -78,11 +97,46 @@
   overflow-wrap: anywhere;
 }
 
+.server-health-summary {
+  display: flex;
+  flex: 1 1 100%;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.server-status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.server-status-chip-running {
+  background: #d1e7dd;
+  color: #0f5132;
+}
+
+.server-status-chip-transitioning {
+  background: #fff3cd;
+  color: #664d03;
+}
+
+.server-status-chip-stopped {
+  background: #e2e3e5;
+  color: #41464b;
+}
+
 .server-runtime-summary {
   flex: 1 1 100%;
   font-size: 0.8rem;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.server-freshness {
+  font-size: 0.75rem;
 }
 
 .server-toggle {
@@ -149,6 +203,10 @@
   .server-panel-header {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .server-panel-summary {
+    width: 100%;
   }
 
   .server-panel-actions {

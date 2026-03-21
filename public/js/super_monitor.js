@@ -3,6 +3,7 @@ $(init_super);
 let play_pause_timeout;
 const VERSION_CHECK_DUE_KEY = 'time_check_due';
 const VERSION_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const PANEL_STATE_KEY = 'super_monitor_expanded_panels';
 
 function init_super() {
   initialise_refresh_countdown();
@@ -12,47 +13,81 @@ function init_super() {
 
 function toggle_server_panel( $button ) {
   const target = $button.data('target');
+  const isExpanded = $button.attr('aria-expanded') === 'true';
+
+  set_server_panel_state(target, !isExpanded);
+}
+
+function set_server_panel_state( target, isExpanded, persistState = true ) {
   const $panel = $('#' + target);
 
   if( $panel.length === 0 ) {
     return;
   }
 
-  const isExpanded = $button.attr('aria-expanded') === 'true';
-  const nextExpanded = !isExpanded;
-
-  $panel.prop('hidden', !nextExpanded);
-  $button.attr('aria-expanded', nextExpanded ? 'true' : 'false');
-  $button.html(
-    nextExpanded
+  const expandedValue = isExpanded ? 'true' : 'false';
+  $panel.prop('hidden', !isExpanded);
+  $('.server-toggle[data-target="' + target + '"], .server-panel-summary[data-target="' + target + '"]')
+    .attr('aria-expanded', expandedValue);
+  $('.server-toggle[data-target="' + target + '"]').html(
+    isExpanded
       ? '<i class="bi bi-chevron-up"></i> Collapse'
       : '<i class="bi bi-chevron-down"></i> Expand'
   );
+
+  if( persistState ) {
+    persist_server_panel_state(target, isExpanded);
+  }
+}
+
+function get_saved_server_panel_states() {
+  try {
+    const savedState = localStorage.getItem(PANEL_STATE_KEY);
+
+    if( savedState === null ) {
+      return {};
+    }
+
+    const parsedState = JSON.parse(savedState);
+    return typeof parsedState === 'object' && parsedState !== null ? parsedState : {};
+  }
+  catch( _error ) {
+    return {};
+  }
+}
+
+function persist_server_panel_state( target, isExpanded ) {
+  const savedState = get_saved_server_panel_states();
+
+  if( isExpanded ) {
+    savedState[target] = true;
+  }
+  else {
+    delete savedState[target];
+  }
+
+  try {
+    localStorage.setItem(PANEL_STATE_KEY, JSON.stringify(savedState));
+  }
+  catch( _error ) {
+  }
+}
+
+function restore_server_panel_states() {
+  const savedState = get_saved_server_panel_states();
+
+  $('.server-toggle').each( function() {
+    const target = $(this).data('target');
+    set_server_panel_state(target, savedState[target] === true, false);
+  } );
 }
 
 function initialise_server_toggles() {
-  $('.server-toggle').click( function() {
-    const $button = $(this);
-    toggle_server_panel($button);
+  $('.server-toggle, .server-panel-summary').click( function() {
+    toggle_server_panel($(this));
   } );
 
-  $('.server-panel-header').click( function(event) {
-    const $target = $(event.target);
-
-    if( $target.closest('a').length > 0 ) {
-      return;
-    }
-
-    if( $target.closest('button').length > 0 && !$target.closest('.server-toggle').length ) {
-      return;
-    }
-
-    if( $target.closest('.server-toggle').length > 0 ) {
-      return;
-    }
-
-    toggle_server_panel($(this).find('.server-toggle').first());
-  } );
+  restore_server_panel_states();
 }
 
 function check_version() {

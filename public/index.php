@@ -21,6 +21,9 @@ foreach($config['supervisor_servers'] as $name => $settings){
 
 $failed_servers = [];
 $healthy_servers = [];
+$page_refreshed_at = new DateTimeImmutable('now');
+$page_refreshed_at_iso = $page_refreshed_at->format(DateTimeInterface::ATOM);
+$page_refreshed_at_display = $page_refreshed_at->format('H:i:s');
 
 foreach( $config['supervisor_servers'] as $name => $details ){
   $list = $details['list'] ?? [];
@@ -38,6 +41,11 @@ foreach( $config['supervisor_servers'] as $name => $details ){
   }
 
   $dead_process_count = 0;
+  $status_summary = [
+    'running' => 0,
+    'transitioning' => 0,
+    'stopped' => 0,
+  ];
   $running_extremes = running_process_extremes($list);
 
   foreach( $list as $item ){
@@ -45,7 +53,24 @@ foreach( $config['supervisor_servers'] as $name => $details ){
       continue;
     }
 
-    if( is_dead_process_status((string) ($item['statename'] ?? '')) ){
+    $status = (string) ($item['statename'] ?? '');
+
+    if( $status === 'RUNNING' ){
+      $status_summary['running']++;
+      continue;
+    }
+
+    if( in_array($status, ['STARTING', 'STOPPING'], TRUE) ){
+      $status_summary['transitioning']++;
+      continue;
+    }
+
+    if( $status === 'STOPPED' ){
+      $status_summary['stopped']++;
+      continue;
+    }
+
+    if( is_dead_process_status($status) ){
       $dead_process_count++;
     }
   }
@@ -57,7 +82,9 @@ foreach( $config['supervisor_servers'] as $name => $details ){
     'server_url' => $server_url,
     'version' => (string) $version,
     'list' => $list,
+    'fetch_duration_ms' => (int) ($details['fetch_duration_ms'] ?? 0),
     'dead_process_count' => $dead_process_count,
+    'status_summary' => $status_summary,
     'running_extremes' => $running_extremes,
   ];
 }
@@ -139,35 +166,60 @@ foreach( $config['supervisor_servers'] as $name => $details ){
           <?php foreach( $healthy_servers as $server ){ ?>
           <div class="col-12 col-lg-6">
           <section class="server-panel">
-            <div class="server-panel-header" data-target="<?=h($server['collapse_id'])?>">
-              <div class="server-panel-meta">
-                <span class="server-panel-name fw-semibold">
-                  <?=h($server['name'])?> (<?=h($server['label'])?>)
+            <div class="server-panel-header">
+              <button
+                class="server-panel-summary"
+                type="button"
+                data-target="<?=h($server['collapse_id'])?>"
+                aria-expanded="false"
+                aria-controls="<?=h($server['collapse_id'])?>"
+              >
+                <span class="server-panel-meta">
+                  <span class="server-panel-name fw-semibold">
+                    <?=h($server['name'])?> (<?=h($server['label'])?>)
+                  </span>
+                  <span class="text-muted">v<?=h($server['version'])?></span>
+                  <span class="server-dead-badge<?= $server['dead_process_count'] === 0 ? ' server-dead-badge-ok' : '' ?>">
+                    <i class="bi <?= $server['dead_process_count'] === 0 ? 'bi-check-circle-fill' : 'bi-x-octagon-fill' ?>"></i>
+                    <?=h((string) $server['dead_process_count'])?> dead
+                  </span>
+                  <span class="server-health-summary" aria-label="Process summary">
+                    <span class="server-status-chip server-status-chip-running">
+                      <?=h((string) $server['status_summary']['running'])?> running
+                    </span>
+                    <span class="server-status-chip server-status-chip-transitioning">
+                      <?=h((string) $server['status_summary']['transitioning'])?> start/stop
+                    </span>
+                    <span class="server-status-chip server-status-chip-stopped">
+                      <?=h((string) $server['status_summary']['stopped'])?> stopped
+                    </span>
+                  </span>
+                  <span class="server-runtime-summary">
+                    Longest running:
+                    <?php if( $server['running_extremes']['longest'] !== NULL ){ ?>
+                    <span class="fw-semibold"><?=h($server['running_extremes']['longest']['name'])?></span>
+                    <span class="text-muted">(<?=h($server['running_extremes']['longest']['uptime'])?>)</span>
+                    <?php } else { ?>
+                    <span class="text-muted">none</span>
+                    <?php } ?>
+                  </span>
+                  <span class="server-runtime-summary">
+                    Shortest running:
+                    <?php if( $server['running_extremes']['shortest'] !== NULL ){ ?>
+                    <span class="fw-semibold"><?=h($server['running_extremes']['shortest']['name'])?></span>
+                    <span class="text-muted">(<?=h($server['running_extremes']['shortest']['uptime'])?>)</span>
+                    <?php } else { ?>
+                    <span class="text-muted">none</span>
+                    <?php } ?>
+                  </span>
+                  <span class="server-runtime-summary server-freshness text-muted">
+                    Fetched in <?=h((string) $server['fetch_duration_ms'])?>ms
+                    &middot;
+                    Updated
+                    <time datetime="<?=h($page_refreshed_at_iso)?>"><?=h($page_refreshed_at_display)?></time>
+                  </span>
                 </span>
-                <span class="text-muted">v<?=h($server['version'])?></span>
-                <span class="server-dead-badge<?= $server['dead_process_count'] === 0 ? ' server-dead-badge-ok' : '' ?>">
-                  <i class="bi <?= $server['dead_process_count'] === 0 ? 'bi-check-circle-fill' : 'bi-x-octagon-fill' ?>"></i>
-                  <?=h((string) $server['dead_process_count'])?> dead
-                </span>
-                <span class="server-runtime-summary">
-                  Longest running:
-                  <?php if( $server['running_extremes']['longest'] !== NULL ){ ?>
-                  <span class="fw-semibold"><?=h($server['running_extremes']['longest']['name'])?></span>
-                  <span class="text-muted">(<?=h($server['running_extremes']['longest']['uptime'])?>)</span>
-                  <?php } else { ?>
-                  <span class="text-muted">none</span>
-                  <?php } ?>
-                </span>
-                <span class="server-runtime-summary">
-                  Shortest running:
-                  <?php if( $server['running_extremes']['shortest'] !== NULL ){ ?>
-                  <span class="fw-semibold"><?=h($server['running_extremes']['shortest']['name'])?></span>
-                  <span class="text-muted">(<?=h($server['running_extremes']['shortest']['uptime'])?>)</span>
-                  <?php } else { ?>
-                  <span class="text-muted">none</span>
-                  <?php } ?>
-                </span>
-              </div>
+              </button>
               <div class="server-panel-actions">
                 <div class="server-panel-action-list">
                   <a href="<?=h($server['server_url'])?>" class="btn btn-xs btn-outline-secondary" type="button" target="_blank" rel="noopener noreferrer" title="Open supervisor UI" aria-label="Open supervisor UI for <?=h($server['name'])?>">
@@ -188,7 +240,7 @@ foreach( $config['supervisor_servers'] as $name => $details ){
                     <i class="bi bi-arrow-clockwise"></i> Restart all
                   </a>
                 </div>
-                <button class="btn btn-xs btn-secondary server-toggle" type="button" data-target="<?=h($server['collapse_id'])?>" aria-expanded="false">
+                <button class="btn btn-xs btn-secondary server-toggle" type="button" data-target="<?=h($server['collapse_id'])?>" aria-expanded="false" aria-controls="<?=h($server['collapse_id'])?>">
                   <i class="bi bi-chevron-down"></i> Expand
                 </button>
               </div>
