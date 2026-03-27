@@ -24,6 +24,8 @@ $healthy_servers = [];
 $page_refreshed_at = new DateTimeImmutable('now');
 $page_refreshed_at_iso = $page_refreshed_at->format(DateTimeInterface::ATOM);
 $page_refreshed_at_display = $page_refreshed_at->format('H:i:s');
+$dashboard_css_version = (string) (filemtime(__DIR__ . '/css/super_monitor.css') ?: $config['version']);
+$dashboard_js_version = (string) (filemtime(__DIR__ . '/js/super_monitor.js') ?: $config['version']);
 $global_restart_lock_error = NULL;
 $global_restart_lock = [
   'is_locked' => FALSE,
@@ -134,7 +136,7 @@ foreach( $config['supervisor_servers'] as $name => $details ){
     <!-- Bootstrap Stylesheet -->
     <link type="text/css" rel="stylesheet" href="bootstrap/css/bootstrap.min.css"/>
     <link type="text/css" rel="stylesheet" href="bootstrap-icons/bootstrap-icons.css"/>
-    <link type="text/css" rel="stylesheet" href="css/super_monitor.css"/>
+    <link type="text/css" rel="stylesheet" href="css/super_monitor.css?v=<?=h($dashboard_css_version)?>"/>
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -408,7 +410,7 @@ foreach( $config['supervisor_servers'] as $name => $details ){
 
     <script type="text/javascript" src="jquery/jquery.min.js"></script>
     <script type="text/javascript" src="bootstrap/js/bootstrap.min.js"></script>
-    <script type="text/javascript" src="js/super_monitor.js"></script>
+    <script type="text/javascript" src="js/super_monitor.js?v=<?=h($dashboard_js_version)?>"></script>
 
   </body>
 
