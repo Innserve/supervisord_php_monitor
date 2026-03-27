@@ -1,63 +1,103 @@
 <?php
 declare(strict_types=1);
 
-require_once "../vendor/autoload.php";
-
-$dotenv = Dotenv\Dotenv::createImmutable(dirname(__DIR__));
-$dotenv->load();
-
-$dotenv->required('SERVERS')->notEmpty();
-
-require_once "../config/config.inc";
-require_once "../lib/functions.inc";
+require_once dirname(__DIR__) . "/bootstrap.php";
 
 // $config['debug'] = TRUE;
 
-$server = $_GET['server'] ?? '';
-$worker = $_GET['worker'] ?? '';
-$action = $_GET['action'] ?? '';
+$request_method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+$request = $request_method === 'POST' ? $_POST : $_GET;
+$server = (string) ($request['server'] ?? '');
+$worker = (string) ($request['worker'] ?? '');
+$action = (string) ($request['action'] ?? '');
 
-if( $server == '' || $action == '' ){
-  die("Server and action required");
+if( $action === '' ){
+  http_response_code(400);
+  die("Action required");
 }
 
-if( in_array($action, ['startProcess', 'stopProcess', 'restartProcess']) && $worker == '' ){
+try {
+  $action = validate_control_identifier($action, "Action");
+}
+catch( InvalidArgumentException $e ) {
+  http_response_code(400);
+  die($e->getMessage());
+}
+
+if( !is_valid_control_action($action) ){
+  http_response_code(400);
+  die("Unknown action");
+}
+
+if( $action === 'restartAllServers' && $request_method !== 'POST' ){
+  http_response_code(405);
+  header('Allow: POST');
+  die("This action must use POST");
+}
+
+if( action_requires_server($action) && $server === '' ){
+  http_response_code(400);
+  die("Server required");
+}
+
+if( action_requires_server($action) ){
+  try {
+    $server = validate_control_identifier($server, "Server");
+  }
+  catch( InvalidArgumentException $e ) {
+    http_response_code(400);
+    die($e->getMessage());
+  }
+}
+
+if( action_requires_worker($action) && $worker === '' ){
+  http_response_code(400);
   die("This action requires a worker");
 }
 
-switch ($action) {
-  case 'startProcess':
-  case 'stopProcess':
-    single_worker_action( $server, $worker, $action );
-    break;
-  case 'startAllProcesses':
-  case 'stopAllProcesses':
-    full_server_action( $server, $action );
-    break;
-  case 'restartProcess':
-    single_worker_action( $server, $worker, 'stopProcess' );
-    sleep(2);
-    single_worker_action( $server, $worker, 'startProcess' );
-    break;
-  case 'restartAllProcesses':
-    full_server_action( $server, 'stopAllProcesses' );
-    sleep(2);
-    full_server_action( $server, 'startAllProcesses' );
-    break;
-  default:
-    die("Unknown action");
+if( action_requires_worker($action) ){
+  try {
+    $worker = validate_control_identifier($worker, "Worker");
+  }
+  catch( InvalidArgumentException $e ) {
+    http_response_code(400);
+    die($e->getMessage());
+  }
 }
 
-header("Location: /");
+try {
+  if( $action === 'restartAllServers' ){
+    $lock_status = claim_global_restart_lock();
 
-function single_worker_action( string $server, string $worker, string $action ) :void {
-  echo $server . " / " . $worker . " / " . $action . "<br />";
-  $response = do_the_request( $server, $action, [$worker, 1] ); // TRUE tells supervisor to wait before responding http://supervisord.org/api.html
-  echo "Done - " . $response . "<br />";
+    if( !$lock_status['allowed'] ){
+      app_log('control.global_restart_denied', [
+        'locked_until' => gmdate('c', $lock_status['locked_until']),
+        'seconds_remaining' => $lock_status['seconds_remaining'],
+      ]);
+
+      header("Location: /?control_notice=restart-all-servers-locked", true, 303);
+      exit;
+    }
+  }
+
+  dispatch_control_action($server, $action, $worker !== '' ? $worker : NULL);
+}
+catch( Throwable $e ) {
+  app_log('control.dispatch_failed', [
+    'server' => $server !== '' ? $server : NULL,
+    'action' => $action,
+    'worker' => $worker !== '' ? $worker : NULL,
+    'error' => $e->getMessage(),
+  ]);
+  http_response_code(500);
+  die("Control action failed");
 }
 
-function full_server_action( string $server, string $action ) :void {
-  echo $server . " / " . $action . "<br />";
-  $response = do_the_request( $server, $action, [1] );          // TRUE tells supervisor to wait before responding http://supervisord.org/api.html
-  echo "Done - " . $response . "<br />";
+$redirect_url = '/';
+
+if( $action === 'restartAllServers' ){
+  $redirect_url = '/?control_notice=restart-all-servers-started';
 }
+
+header("Location: " . $redirect_url, true, 303);
+exit;

@@ -6,4 +6,5 @@ $config['refresh'] = 60;
 // Set timeout connecting to remote supervisord RPC2 interface
 $config['timeout'] = 3;
 
-$config['supervisor_servers'] = json_decode( $_ENV['SERVERS'], TRUE );
+$servers_json = (string) ($_ENV['SERVERS'] ?? '');
+$config['supervisor_servers'] = json_decode($servers_json, TRUE, 512, JSON_THROW_ON_ERROR);

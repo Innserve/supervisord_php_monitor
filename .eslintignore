@@ -1,0 +1,7 @@
+**/*.min.js
+**/bootstrap.js
+**/ie10-viewport-bug-workaround.js
+**/npm.js
+vendor/**
+node_modules/**
+dist/**
