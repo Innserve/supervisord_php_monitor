@@ -54,11 +54,15 @@
   padding: 0;
   border: 0;
   background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
   border-radius: 0.375rem;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  align-items: flex-start;
+  justify-content: flex-start;
 }
 
 .server-panel-summary:focus-visible,
