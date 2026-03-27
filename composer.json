@@ -11,7 +11,7 @@
 		"vlucas/phpdotenv": "^5.4"
 	},
 	"scripts": {
-		"post-update-cmd": [
+		"sync-public-assets": [
 			"rm -rf public/bootstrap",
 			"cp -R vendor/twbs/bootstrap/dist public/bootstrap",
 			"rm -rf public/bootstrap-icons",
@@ -19,13 +19,18 @@
 			"rm -rf public/jquery",
 			"cp -R vendor/components/jquery public/jquery"
 		],
+		"post-update-cmd": [
+			"@sync-public-assets"
+		],
 		"post-install-cmd": [
-			"rm -rf public/bootstrap",
-			"cp -R vendor/twbs/bootstrap/dist public/bootstrap",
-			"rm -rf public/bootstrap-icons",
-			"cp -R vendor/twbs/bootstrap-icons/font public/bootstrap-icons",
-			"rm -rf public/jquery",
-			"cp -R vendor/components/jquery public/jquery"
+			"@sync-public-assets"
+		],
+		"serve": [
+			"php -S 127.0.0.1:8080 -t public"
+		],
+		"check": [
+			"composer validate --no-check-publish",
+			"find . -path './vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l"
 		]
 	}
 }

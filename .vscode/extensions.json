@@ -1,0 +1,84 @@
+{
+    "recommendations": [
+        // --- PHP ---
+        "bmewburn.vscode-intelephense-client", // Powerful PHP server with IntelliSense, diagnostics, etc
+        "junstyle.php-cs-fixer", // PHP CS Fixer for PSR-12 formatting
+        "neilbrayfield.php-docblocker", // Auto-generates PHPDoc blocks
+        "mehedidracula.php-namespace-resolver", // Helps auto-import and manage PHP namespaces
+        "xdebug.php-debug", // Full Xdebug support pack
+        "onecentlin.composer-extension-pack", // Composer integration for PHP dependency management
+        "ecodes.vscode-phpmd", // PHP Mess Detector for static analysis
+        "mrmlnc.vscode-apache", // Apache syntax highlighting
+        "mikestead.dotenv", // Support for .env files
+
+        // --- JavaScript / HTML / CSS ---
+        "dbaeumer.vscode-eslint", // Linting for JavaScript and JSX
+        "esbenp.prettier-vscode", // Code formatter for JS, HTML, CSS, etc.
+        "xabikos.JavaScriptSnippets", // JavaScript code snippets
+        "compulim.compulim-vscode-closetag", // Functionality covered by auto-rename-tag
+        "zignd.html-css-class-completion", // Autocomplete for CSS classes in HTML
+        "naumovs.color-highlight", // Highlights colour codes in your code
+
+        // --- Java ---
+        "vscjava.vscode-java-pack", // Java support including IntelliSense, debugging, Maven, etc.
+        "shengchen.vscode-checkstyle", // Enforces Java code style (e.g. Google Style)
+
+        // --- Kotlin ---
+        "fwcd.kotlin", // Kotlin language support
+        "mathiasfrohlich.kotlin", // Kotlin debugging and build tools
+
+        // --- Ruby ---
+        "castwide.solargraph", // Ruby language server with IntelliSense and diagnostics
+        "misogi.ruby-rubocop", // RuboCop integration for linting and formatting
+
+        // --- Databases ---
+        "mtxr.sqltools", // Microsoft SQL Server support
+        "mtxr.sqltools-driver-mysql", // Microsoft MySQL Driver Support
+
+        // --- Productivity / Utilities ---
+        "eamodio.gitlens", // Git insights and history
+        "gruntfuggly.todo-tree", // Highlights TODOs and FIXMEs in code
+        "aaron-bond.better-comments", // Colour-coded comments for better readability
+        "editorconfig.editorconfig", // Enforces consistent coding styles across editors
+        "shardulm94.trailing-spaces", // Highlights and trims trailing whitespace
+        "foxundermoon.shell-format", // Formatter for shell scripts
+        "timonwong.shellcheck", // Linter for shell scripts
+        "mechatroner.rainbow-csv", // Colourful CSV viewer
+        "ban.spellright", // Spell checker for code and markdown
+        "davidanson.vscode-markdownlint", // Markdown linter
+        "shd101wyy.markdown-preview-enhanced", // Rich markdown preview with diagrams, LaTeX, etc.
+
+        // --- Optional / Niche ---
+        "github.copilot", // AI pair programmer
+        "github.copilot-chat", // Chat interface for GitHub Copilot
+        "github.vscode-pull-request-github", // GitHub PR and issue integration
+        "ms-azuretools.vscode-docker", // Docker support
+        "ms-azuretools.vscode-containers", // Container explorer
+        "ms-vscode-remote.remote-containers", // Dev container support
+        "vscode-icons-team.vscode-icons", // File icons for better visual navigation
+        "zhuangtongfa.material-theme", // Material Design-inspired theme
+        "ryu1kn.partial-diff", // Niche diff tool, not essential
+        "whatwedo.twig", // Only needed if you're using Twig templates
+        "miku3920.vscode-render-special-chars", // Niche visual aid
+        "koichisasada.vscode-rdbg", // Ruby debugger, not configured in your settings
+        "wmaurer.change-case", // Utility for renaming, not stack-specific
+        "sorbet.sorbet-vscode-extension", // Not used in your Ruby setup
+        "anykeyh.simplecov-vscode", // Only needed if using SimpleCov for Ruby test coverage
+        "redhat.vscode-yaml", // YAML Linting
+        "recca0120.vscode-phpunit", // PHPUnit integration for running and debugging PHP tests
+        "humao.rest-client", // Send HTTP requests and view responses directly in VSCode
+        "wheredoesyourmindgo.gruvbox-concoctis", // Automatically adds closing tags in HTML/XML
+        "Vue.volar", // Linting for Vue
+        "GraphQL.vscode-graphql", // Linting for GraphQL
+        "stylelint.vscode-stylelint" // Linting for CSS
+    ],
+    "unwantedRecommendations": [
+        "shevaua.phpcs", // Redundant if you're using php-cs-fixer exclusively
+        "ikappas.phpcs", // Not needed if php-cs-fixer is preferred
+        "stylelint.vscode-stylelint", // Use only if linting CSS directly
+        "idleberg.icon-fonts", // Niche, not relevant to your stack
+        "jeremyljackson.vs-docblock", // Overlaps with php-docblocker
+        "shopify.ruby-lsp", // Redundant with Solargraph
+        "rexshi.phpdoc-comment-vscode-plugin" // Redundant with php-docblocker
+    ]
+}

@@ -1,26 +1,124 @@
 <?php
 declare(strict_types=1);
 
-require_once "../vendor/autoload.php";
-
-$dotenv = Dotenv\Dotenv::createImmutable(dirname(__DIR__));
-$dotenv->load();
-
-$dotenv->required('SERVERS')->notEmpty();
-
-require_once "../config/config.inc";
-require_once "../lib/functions.inc";
+require_once dirname(__DIR__) . "/bootstrap.php";
 
 // $config['debug'] = TRUE;
 
-$config['version'] = '1.0.4';
-
-$config['refresh'] = $config['refresh'] ?? 60;
-$config['supervisor_servers'] = $config['supervisor_servers'] ?? [];
-
 foreach($config['supervisor_servers'] as $name => $settings){
-  $config['supervisor_servers'][$name]['list'] = do_the_request($name,'getAllProcessInfo');
-  $config['supervisor_servers'][$name]['version'] = do_the_request($name,'getSupervisorVersion');
+  $started_at = microtime(TRUE);
+  $config['supervisor_servers'][$name]['list'] = call_supervisor($name,'getAllProcessInfo');
+  $config['supervisor_servers'][$name]['version'] = call_supervisor($name,'getSupervisorVersion');
+  $config['supervisor_servers'][$name]['fetch_duration_ms'] = (int) round((microtime(TRUE) - $started_at) * 1000);
+
+  app_log('dashboard.server_fetch', [
+    'server' => (string) $name,
+    'duration_ms' => $config['supervisor_servers'][$name]['fetch_duration_ms'],
+    'list_ok' => is_array($config['supervisor_servers'][$name]['list']),
+    'version_response_type' => get_debug_type($config['supervisor_servers'][$name]['version']),
+  ]);
+}
+
+$failed_servers = [];
+$healthy_servers = [];
+$page_refreshed_at = new DateTimeImmutable('now');
+$page_refreshed_at_iso = $page_refreshed_at->format(DateTimeInterface::ATOM);
+$page_refreshed_at_display = $page_refreshed_at->format('H:i:s');
+$global_restart_lock_error = NULL;
+$global_restart_lock = [
+  'is_locked' => FALSE,
+  'locked_until' => 0,
+  'seconds_remaining' => 0,
+];
+$global_restart_notice = (string) ($_GET['control_notice'] ?? '');
+$global_restart_locked_until_display = NULL;
+$global_restart_locked_until_iso = NULL;
+$global_restart_remaining_display = NULL;
+
+try {
+  $global_restart_lock = global_restart_lock_status();
+}
+catch( RuntimeException $e ) {
+  $global_restart_lock_error = 'Global restart is temporarily unavailable.';
+  $global_restart_lock['is_locked'] = TRUE;
+
+  app_log('dashboard.global_restart_lock_status_failed', [
+    'error' => $e->getMessage(),
+  ]);
+}
+
+if( $global_restart_lock['is_locked'] ){
+  $minutes_remaining = intdiv($global_restart_lock['seconds_remaining'], 60);
+  $seconds_remaining = $global_restart_lock['seconds_remaining'] % 60;
+  $global_restart_remaining_display = sprintf('%d:%02d', $minutes_remaining, $seconds_remaining);
+  $global_restart_locked_until = (new DateTimeImmutable())
+    ->setTimestamp((int) $global_restart_lock['locked_until']);
+  $global_restart_locked_until_iso = $global_restart_locked_until->format(DateTimeInterface::ATOM);
+  $global_restart_locked_until_display = $global_restart_locked_until->format('H:i:s');
+}
+
+foreach( $config['supervisor_servers'] as $name => $details ){
+  $list = $details['list'] ?? [];
+  $version = $details['version'] ?? 'unknown';
+  $server_url = ($details['url'] ?? '') . ':' . ($details['port'] ?? '');
+  $server_label = str_replace("http://","",(string) ($details['url'] ?? ''));
+
+  if( !is_array($list) ){
+    $failed_servers[] = [
+      'name' => (string) $name,
+      'label' => $server_label,
+      'error' => (string) $list,
+    ];
+    continue;
+  }
+
+  $dead_process_count = 0;
+  $status_summary = [
+    'running' => 0,
+    'transitioning' => 0,
+    'stopped' => 0,
+  ];
+  $running_extremes = running_process_extremes($list);
+
+  foreach( $list as $item ){
+    if( !is_array($item) ){
+      continue;
+    }
+
+    $status = (string) ($item['statename'] ?? '');
+
+    if( $status === 'RUNNING' ){
+      $status_summary['running']++;
+      continue;
+    }
+
+    if( in_array($status, ['STARTING', 'STOPPING'], TRUE) ){
+      $status_summary['transitioning']++;
+      continue;
+    }
+
+    if( $status === 'STOPPED' ){
+      $status_summary['stopped']++;
+      continue;
+    }
+
+    if( is_dead_process_status($status) ){
+      $dead_process_count++;
+    }
+  }
+
+  $healthy_servers[] = [
+    'collapse_id' => 'server-' . preg_replace('/[^a-z0-9]+/i', '-', (string) $name),
+    'name' => (string) $name,
+    'label' => $server_label,
+    'server_url' => $server_url,
+    'version' => (string) $version,
+    'list' => $list,
+    'fetch_duration_ms' => (int) ($details['fetch_duration_ms'] ?? 0),
+    'dead_process_count' => $dead_process_count,
+    'status_summary' => $status_summary,
+    'running_extremes' => $running_extremes,
+  ];
 }
 ?>
 
@@ -53,11 +151,11 @@ foreach($config['supervisor_servers'] as $name => $settings){
         <div class="col">
           <h2 class='float-start'>
             Supervisor PHP Monitor
-            <small class="text-muted">v<span id="gh_version_number"><?=$config['version']?></span></small>
+            <small class="text-muted">v<span id="gh_version_number"><?=h($config['version'])?></span></small>
           </h2>
           <span id="refresh_container" class='float-end pe-3'>
             Refresh in
-            <span id="refresh_count" class="fw-bold fs-4"><?=$config['refresh']?></span>s
+            <span id="refresh_count" class="fw-bold fs-4"><?=h($config['refresh'])?></span>s
             <i id='start_stop_refresh' class="bi bi-pause-circle fs-4 fw-bold ms-2 text-primary cur-point"></i>
           </span>
         </div>
@@ -65,124 +163,245 @@ foreach($config['supervisor_servers'] as $name => $settings){
       <div class="row">
         <div class="col">
           <nav class="nav">
-            <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor">
+            <a class="nav-link" target="_blank" rel="noopener noreferrer" href="<?=h($config['app_meta']['repo'])?>">
               <i class="bi bi-github"></i> Github
             </a>
-            <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor/issues">
+            <a class="nav-link" target="_blank" rel="noopener noreferrer" href="<?=h($config['app_meta']['issues'])?>">
               <i class="bi bi-exclamation-diamond"></i> Issues
             </a>
-            <a class="nav-link" target="_blank" href="https://github.com/Innserve/supervisord_php_monitor/releases">
-              <i class="bi bi-file-diff"></i> Releases <span id="version_badge"><i class="bi bi-question-circle"></i></span>
+            <a class="nav-link" target="_blank" rel="noopener noreferrer" href="<?=h($config['app_meta']['releases'])?>">
+              <i class="bi bi-file-diff"></i> Releases
             </a>
           </nav>
+        </div>
+      </div>
+      <div class="row mt-2">
+        <div class="col">
+          <?php if( $global_restart_lock_error !== NULL ){ ?>
+          <div class="alert alert-secondary py-2 mb-2" role="status">
+            <?=h($global_restart_lock_error)?>
+          </div>
+          <?php } elseif( $global_restart_notice === 'restart-all-servers-started' ){ ?>
+          <div class="alert alert-warning py-2 mb-2" role="status">
+            Global restart started for all configured servers.
+          </div>
+          <?php } elseif( $global_restart_notice === 'restart-all-servers-locked' && $global_restart_remaining_display !== NULL ){ ?>
+          <div class="alert alert-secondary py-2 mb-2" role="status">
+            Global restart is locked for another <?=h($global_restart_remaining_display)?>.
+          </div>
+          <?php } ?>
+
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <form
+              method="post"
+              action="/control"
+              class="confirmable-form mb-0"
+              data-confirm-message="Restart all supervised processes on every configured server? This action is limited to once every 5 minutes."
+            >
+              <input type="hidden" name="action" value="restartAllServers"/>
+              <button
+                class="btn btn-sm btn-danger"
+                type="submit"
+                <?= $global_restart_lock['is_locked'] || $global_restart_lock_error !== NULL ? 'disabled aria-disabled="true"' : '' ?>
+              >
+                <i class="bi bi-exclamation-triangle-fill"></i> Restart all servers
+              </button>
+            </form>
+
+            <?php if( $global_restart_lock_error !== NULL ){ ?>
+            <small class="text-muted">
+              Global restart cannot be scheduled until the cooldown state can be read.
+            </small>
+            <?php } elseif( $global_restart_lock['is_locked'] && $global_restart_locked_until_display !== NULL && $global_restart_remaining_display !== NULL ){ ?>
+            <small class="text-muted">
+              Locked for <?=h($global_restart_remaining_display)?>.
+              Next available at
+              <time datetime="<?=h($global_restart_locked_until_iso)?>"><?=h($global_restart_locked_until_display)?></time>.
+            </small>
+            <?php } else { ?>
+            <small class="text-muted">
+              Restarts all supervised processes on every configured server.
+            </small>
+            <?php } ?>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="container-fluid">
+      <?php if( $failed_servers !== [] ){ ?>
       <div class="row">
-        <?php foreach($config['supervisor_servers'] as $name=>$details){ ?>
-        <div class="col col-lg-6 col-xl-4 col-xxl-3">
-          <table class="table table-bordered table-sm table-striped">
-            <thead>
-              <tr>
-                <th colspan="4">
-                  <a href="<?=$details['url'].":".$details['port']?>" class='link-secondary' target="_blank">
-                    <?=$name?> (<?=str_replace("http://","",$details['url']);?>)
-                  </a>
-                  <?php
-                  echo '&nbsp; v<i>'.$details['version'].'</i>';
-                  if(!isset($details['list']['error'])){
-                  ?>
-                    <span class="server-btns float-end">
-                      <a href="/control?action=stopAllProcesses&server=<?=$name?>" class="btn btn-xs btn-danger" type="button">
-                        <i class="bi bi-stop-circle"></i> Stop all
-                      </a>
-                      <a href="/control?action=startAllProcesses&server=<?=$name?>" class="btn btn-xs btn-success" type="button">
-                        <i class="bi bi-play-circle"></i> Start all
-                      </a>
-                      <a href="/control?action=restartAllProcesses&server=<?=$name?>" class="btn btn-xs btn-warning" type="button">
-                        <i class="bi bi-arrow-clockwise"></i> Restart all
-                      </a>
-                    </span>
-                  <?php
-                  }
-                  ?>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php
-              foreach($details['list'] as $item){
-                if($item['group'] != $item['name']){
-                  $item_name = $item['group'].":".$item['name'];
-                }
-                else {
-                  $item_name = $item['name'];
-                }
-
-                $pid = '&nbsp;';
-                $uptime = '&nbsp;';
-                $status = $item['statename'];
-
-                switch ($status) {
-                  case 'RUNNING':
-                    $class = 'table-success';
-                    list($pid,$uptime) = explode(",",$item['description']);
-                    break;
-                  case 'STARTING':
-                    $class = 'table-warning';
-                    break;
-                  case 'FATAL':
-                    $class = 'table-danger';
-                    break;
-                  case 'STOPPED':
-                    $class = 'table-danger';
-                    break;
-                  default:
-                    $class = 'table-secondary';
-                    break;
-                }
-
-                $uptime = str_replace("uptime ","",$uptime);
-                ?>
-                <tr>
-                  <td><?=$item_name;?></td>
-                  <td style="text-align:center" class='<?=$class;?>'><?=$status;?></td>
-                  <td style="text-align:right"><?=$uptime;?></td>
-                  <td style="text-align:right">
-                    <div class="actions">
-                      <?php if($status=='RUNNING'){ ?>
-                      <a href="/control?action=stopProcess&server=<?=$name?>&worker=<?=$item_name?>" class="btn btn-xs btn-danger" type="button">
-                        <i class="bi bi-stop-circle"></i>
-                      </a>
-                      <a href="/control?action=restartProcess&server=<?=$name?>&worker=<?=$item_name?>" class="btn btn-xs btn-warning" type="button">
-                        <i class="bi bi-arrow-clockwise"></i>
-                      </a>
-                      <?php } if( in_array( $status, ['STOPPED', 'EXITED', 'FATAL'] ) ){ ?>
-                      <a href="/control?action=startProcess&server=<?=$name?>&worker=<?=$item_name?>" class="btn btn-xs btn-success" type="button">
-                        <i class="bi bi-play-circle"></i>
-                      </a>
-                      <?php } ?>
-                    </div>
-                  </td>
-                </tr>
-                <?php
-              }
-              ?>
-            </tbody>
-          </table>
+        <div class="col-12">
+          <div class="server-error-strip" role="status" aria-live="polite">
+            <?php foreach( $failed_servers as $failed_server ){ ?>
+            <span class="server-error-pill">
+              <i class="bi bi-plug-fill"></i>
+              Connection to <?=h($failed_server['name'])?> (<?=h($failed_server['label'])?>) failed:
+              <?=h($failed_server['error'])?>
+            </span>
+            <?php } ?>
+          </div>
         </div>
-        <?php
-        }
-        ?>
+      </div>
+      <?php } ?>
+
+      <div class="row g-3">
+          <?php foreach( $healthy_servers as $server ){ ?>
+          <div class="col-12 col-lg-6">
+          <section class="server-panel">
+            <div class="server-panel-header">
+              <button
+                class="server-panel-summary"
+                type="button"
+                data-target="<?=h($server['collapse_id'])?>"
+                aria-expanded="false"
+                aria-controls="<?=h($server['collapse_id'])?>"
+              >
+                <span class="server-panel-meta">
+                  <span class="server-panel-name fw-semibold">
+                    <?=h($server['name'])?> (<?=h($server['label'])?>)
+                  </span>
+                  <span class="text-muted">v<?=h($server['version'])?></span>
+                  <span class="server-dead-badge<?= $server['dead_process_count'] === 0 ? ' server-dead-badge-ok' : '' ?>">
+                    <i class="bi <?= $server['dead_process_count'] === 0 ? 'bi-check-circle-fill' : 'bi-x-octagon-fill' ?>"></i>
+                    <?=h((string) $server['dead_process_count'])?> dead
+                  </span>
+                  <span class="server-health-summary" aria-label="Process summary">
+                    <span class="server-status-chip server-status-chip-running">
+                      <?=h((string) $server['status_summary']['running'])?> running
+                    </span>
+                    <span class="server-status-chip server-status-chip-transitioning">
+                      <?=h((string) $server['status_summary']['transitioning'])?> start/stop
+                    </span>
+                    <span class="server-status-chip server-status-chip-stopped">
+                      <?=h((string) $server['status_summary']['stopped'])?> stopped
+                    </span>
+                  </span>
+                  <span class="server-runtime-summary">
+                    Longest running:
+                    <?php if( $server['running_extremes']['longest'] !== NULL ){ ?>
+                    <span class="fw-semibold"><?=h($server['running_extremes']['longest']['name'])?></span>
+                    <span class="text-muted">(<?=h($server['running_extremes']['longest']['uptime'])?>)</span>
+                    <?php } else { ?>
+                    <span class="text-muted">none</span>
+                    <?php } ?>
+                  </span>
+                  <span class="server-runtime-summary">
+                    Shortest running:
+                    <?php if( $server['running_extremes']['shortest'] !== NULL ){ ?>
+                    <span class="fw-semibold"><?=h($server['running_extremes']['shortest']['name'])?></span>
+                    <span class="text-muted">(<?=h($server['running_extremes']['shortest']['uptime'])?>)</span>
+                    <?php } else { ?>
+                    <span class="text-muted">none</span>
+                    <?php } ?>
+                  </span>
+                  <span class="server-runtime-summary server-freshness text-muted">
+                    Fetched in <?=h((string) $server['fetch_duration_ms'])?>ms
+                    &middot;
+                    Updated
+                    <time datetime="<?=h($page_refreshed_at_iso)?>"><?=h($page_refreshed_at_display)?></time>
+                  </span>
+                </span>
+              </button>
+              <div class="server-panel-actions">
+                <div class="server-panel-action-list">
+                  <a href="<?=h($server['server_url'])?>" class="btn btn-xs btn-outline-secondary" type="button" target="_blank" rel="noopener noreferrer" title="Open supervisor UI" aria-label="Open supervisor UI for <?=h($server['name'])?>">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                  </a>
+                  <?php if( $server['dead_process_count'] > 0 ){ ?>
+                  <a href="<?=h(control_url('restartDeadProcesses', $server['name']))?>" class="btn btn-xs btn-outline-danger" type="button">
+                    <i class="bi bi-arrow-repeat"></i> Restart dead
+                  </a>
+                  <?php } ?>
+                  <a href="<?=h(control_url('stopAllProcesses', $server['name']))?>" class="btn btn-xs btn-danger" type="button">
+                    <i class="bi bi-stop-circle"></i> Stop all
+                  </a>
+                  <a href="<?=h(control_url('startAllProcesses', $server['name']))?>" class="btn btn-xs btn-success" type="button">
+                    <i class="bi bi-play-circle"></i> Start all
+                  </a>
+                  <a href="<?=h(control_url('restartAllProcesses', $server['name']))?>" class="btn btn-xs btn-warning" type="button">
+                    <i class="bi bi-arrow-clockwise"></i> Restart all
+                  </a>
+                </div>
+                <button class="btn btn-xs btn-secondary server-toggle" type="button" data-target="<?=h($server['collapse_id'])?>" aria-expanded="false" aria-controls="<?=h($server['collapse_id'])?>">
+                  <i class="bi bi-chevron-down"></i> Expand
+                </button>
+              </div>
+            </div>
+
+            <div id="<?=h($server['collapse_id'])?>" class="server-panel-body" hidden>
+              <table class="table table-bordered table-sm table-striped mb-0">
+                <thead>
+                  <tr>
+                    <th>Process</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-end">Uptime</th>
+                    <th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach( $server['list'] as $item ){
+                    if( !is_array($item) ){
+                      continue;
+                    }
+
+                    $item_name = process_display_name($item);
+                    $status = (string) ($item['statename'] ?? 'UNKNOWN');
+                    $class = process_status_class($status);
+                    $uptime = '&nbsp;';
+
+                    if(
+                      $status === 'RUNNING'
+                      && isset($item['description'])
+                      && str_contains((string) $item['description'], ',')
+                    ){
+                      [, $uptime] = explode(",", (string) $item['description'], 2);
+                    }
+
+                    $uptime = str_replace("uptime ","",$uptime);
+                    $dead_note = dead_process_note($item);
+                  ?>
+                  <tr>
+                    <td>
+                      <div><?=h($item_name);?></div>
+                      <?php if( $dead_note !== NULL ){ ?>
+                      <div class="process-note"><?=h($dead_note)?></div>
+                      <?php } ?>
+                    </td>
+                    <td class="text-center <?=h($class);?>"><?=h($status);?></td>
+                    <td class="text-end"><?=h($uptime);?></td>
+                    <td class="text-end">
+                      <div class="actions">
+                        <?php if( $status === 'RUNNING' ){ ?>
+                        <a href="<?=h(control_url('stopProcess', $server['name'], $item_name))?>" class="btn btn-xs btn-danger" type="button">
+                          <i class="bi bi-stop-circle"></i>
+                        </a>
+                        <a href="<?=h(control_url('restartProcess', $server['name'], $item_name))?>" class="btn btn-xs btn-warning" type="button">
+                          <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+                        <?php } ?>
+                        <?php if( can_start_process_status($status) ){ ?>
+                        <a href="<?=h(control_url('startProcess', $server['name'], $item_name))?>" class="btn btn-xs btn-success" type="button">
+                          <i class="bi bi-play-circle"></i>
+                        </a>
+                        <?php } ?>
+                      </div>
+                    </td>
+                  </tr>
+                  <?php } ?>
+                </tbody>
+              </table>
+            </div>
+          </section>
+          </div>
+          <?php } ?>
       </div>
     </div>
 
     <div class="container-fluid">
       <div class="row">
         <div class="col text-center mt-3" id="footer">
-          <p>Powered by <a href="https://github.com/Innserve/supervisord_php_monitor" target="_blank">Supervisord Monitor</a></p>
+          <p>Powered by <a href="<?=h($config['app_meta']['repo'])?>" target="_blank" rel="noopener noreferrer">Supervisord Monitor</a></p>
         </div>
       </div>
     </div>

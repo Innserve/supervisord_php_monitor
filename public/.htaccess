@@ -35,6 +35,12 @@ DirectoryIndex index.php index.html index.htm
 <IfModule mod_headers.c>
   # Disable content sniffing, since it's an attack vector.
   Header always set X-Content-Type-Options nosniff
+  # Reduce clickjacking risk for control actions.
+  Header always set X-Frame-Options SAMEORIGIN
+  # Avoid leaking internal hostnames/process pages via referrers.
+  Header always set Referrer-Policy same-origin
+  # Disable browser access to features this app does not use.
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
   # Disable Proxy header, since it's an attack vector.
   RequestHeader unset Proxy
 </IfModule>
