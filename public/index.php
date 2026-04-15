@@ -7,8 +7,12 @@ require_once dirname(__DIR__) . "/bootstrap.php";
 
 foreach($config['supervisor_servers'] as $name => $settings){
   $started_at = microtime(TRUE);
-  $config['supervisor_servers'][$name]['list'] = call_supervisor($name,'getAllProcessInfo');
-  $config['supervisor_servers'][$name]['version'] = call_supervisor($name,'getSupervisorVersion');
+  [$process_list, $supervisor_version] = call_supervisor_batch($name, [
+    ['getAllProcessInfo'],
+    ['getSupervisorVersion'],
+  ]);
+  $config['supervisor_servers'][$name]['list'] = $process_list;
+  $config['supervisor_servers'][$name]['version'] = $supervisor_version;
   $config['supervisor_servers'][$name]['fetch_duration_ms'] = (int) round((microtime(TRUE) - $started_at) * 1000);
 
   app_log('dashboard.server_fetch', [

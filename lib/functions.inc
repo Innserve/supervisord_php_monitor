@@ -96,6 +96,67 @@ function call_supervisor( string $server, string $method, array $params = [] ) :
 
 }
 
+/**
+ * Batch supervisor RPC calls to reduce page-load round trips per server.
+ *
+ * @param string $server
+ * @param array<int, array{0:string, 1?:array}> $requests
+ *
+ * @return array<int, array|string>
+ */
+function call_supervisor_batch( string $server, array $requests ) :array {
+  global $config;
+
+  if( !isset($config['supervisor_servers'][$server]) ){
+    die("Invalid server: ".$server);
+  }
+
+  $this_server = $config['supervisor_servers'][$server];
+
+  $encoder = new Encoder();
+  $client = new Client( $this_server['url'].":".$this_server['port']."/RPC2" );
+
+  if( $config['debug'] ?? FALSE ) {
+    $client->setDebug(1);
+  }
+
+  if(isset($this_server['username']) && isset($this_server['password'])){
+    $client->setCredentials($this_server['username'], $this_server['password']);
+  }
+
+  $rpcRequests = [];
+  foreach( $requests as $request ){
+    $method = $request[0];
+    $params = $request[1] ?? [];
+    $rpcRequests[] = new Request( 'supervisor.'.$method, $encoder->encode($params) );
+  }
+
+  try {
+    $responses = $client->send($rpcRequests, $config['timeout'], []);
+  }
+  catch( Throwable $e ) {
+    return ['RPC request failed: ' . $e->getMessage()];
+  }
+
+  $values = [];
+
+  foreach( $responses as $response ){
+    if( !$response->faultCode() ){
+      $value = $encoder->decode($response->value());
+    } else {
+      $value = $response->faultString();
+    }
+
+    if( is_bool($value) ){
+      $value = $value ? "True" : "False";
+    }
+
+    $values[] = $value;
+  }
+
+  return $values;
+}
+
 function do_the_request( string $server, string $method, array $params = [] ) :array|string {
   return call_supervisor($server, $method, $params);
 }
@@ -436,11 +497,11 @@ function supervisor_action_map() :array {
   return [
     'startProcess' => [
       'scope' => 'worker',
-      'rpc_sequence' => [['method' => 'startProcess']],
+      'rpc_sequence' => [['method' => 'startProcess', 'wait' => 0]],
     ],
     'stopProcess' => [
       'scope' => 'worker',
-      'rpc_sequence' => [['method' => 'stopProcess']],
+      'rpc_sequence' => [['method' => 'stopProcess', 'wait' => 0]],
     ],
     'restartProcess' => [
       'scope' => 'worker',
@@ -452,11 +513,11 @@ function supervisor_action_map() :array {
     ],
     'startAllProcesses' => [
       'scope' => 'server',
-      'rpc_sequence' => [['method' => 'startAllProcesses']],
+      'rpc_sequence' => [['method' => 'startAllProcesses', 'wait' => 0]],
     ],
     'stopAllProcesses' => [
       'scope' => 'server',
-      'rpc_sequence' => [['method' => 'stopAllProcesses']],
+      'rpc_sequence' => [['method' => 'stopAllProcesses', 'wait' => 0]],
     ],
     'restartAllProcesses' => [
       'scope' => 'server',
@@ -574,9 +635,10 @@ function dispatch_control_action( string $server, string $action, ?string $worke
     }
 
     $method = (string) $step['method'];
+    $wait = (int)($step['wait'] ?? 1);
     $params = ($map[$action]['scope'] === 'worker')
-      ? [(string) $worker, 1]
-      : [1];
+      ? [(string) $worker, $wait]
+      : [$wait];
 
     $started_at = microtime(TRUE);
     $result = call_supervisor($server, $method, $params);
