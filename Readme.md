@@ -44,6 +44,7 @@ and overhauled the rest for PHP8+
     vim .env
     ```
 6. (Optional) Edit `config/config.inc` to change refresh interval / RPC timeout defaults.
+   The configuration excludes `tst01` from monitoring and dashboard controls, even if Chef adds it to `SERVERS`.
 7. Configure your web server to point one of your vhosts to `public` directory.
 8. Open web browser and enter your vhost URL.
 
