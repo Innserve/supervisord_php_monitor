@@ -15,6 +15,7 @@ and overhauled the rest for PHP8+
 * Restart all supervised processes across every configured server with a 5-minute cooldown
 * Monitor process uptime status
 * Surface unreachable servers as non-blocking alerts
+* Display familiar LIVE server names while retaining existing monitoring and control identifiers
 * Show longest-running and shortest-running processes in each server header
 
 ## Install
