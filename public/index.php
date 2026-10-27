@@ -63,6 +63,13 @@ if( $global_restart_lock['is_locked'] ){
   $global_restart_locked_until_display = $global_restart_locked_until->format('H:i:s');
 }
 
+$server_display_names = [
+  'inntranet-prod-web-01' => 'live01',
+  'inntranet-prod-web-02' => 'live02',
+  'inntranet-prod-web-03' => 'live03',
+  'inntranet-prod-web-04' => 'live04',
+];
+
 foreach( $config['supervisor_servers'] as $name => $details ){
   $list = $details['list'] ?? [];
   $version = $details['version'] ?? 'unknown';
@@ -72,6 +79,7 @@ foreach( $config['supervisor_servers'] as $name => $details ){
   if( !is_array($list) ){
     $failed_servers[] = [
       'name' => (string) $name,
+      'display_name' => $server_display_names[$name] ?? (string) $name,
       'label' => $server_label,
       'error' => (string) $list,
     ];
@@ -116,6 +124,7 @@ foreach( $config['supervisor_servers'] as $name => $details ){
   $healthy_servers[] = [
     'collapse_id' => 'server-' . preg_replace('/[^a-z0-9]+/i', '-', (string) $name),
     'name' => (string) $name,
+    'display_name' => $server_display_names[$name] ?? (string) $name,
     'label' => $server_label,
     'server_url' => $server_url,
     'version' => (string) $version,
@@ -242,7 +251,7 @@ foreach( $config['supervisor_servers'] as $name => $details ){
             <?php foreach( $failed_servers as $failed_server ){ ?>
             <span class="server-error-pill">
               <i class="bi bi-plug-fill"></i>
-              Connection to <?=h($failed_server['name'])?> (<?=h($failed_server['label'])?>) failed:
+              Connection to <?=h($failed_server['display_name'])?> (<?=h($failed_server['label'])?>) failed:
               <?=h($failed_server['error'])?>
             </span>
             <?php } ?>
@@ -265,7 +274,7 @@ foreach( $config['supervisor_servers'] as $name => $details ){
               >
                 <span class="server-panel-meta">
                   <span class="server-panel-name fw-semibold">
-                    <?=h($server['name'])?> (<?=h($server['label'])?>)
+                    <?=h($server['display_name'])?> (<?=h($server['label'])?>)
                   </span>
                   <span class="text-muted">v<?=h($server['version'])?></span>
                   <span class="server-dead-badge<?= $server['dead_process_count'] === 0 ? ' server-dead-badge-ok' : '' ?>">
@@ -311,7 +320,7 @@ foreach( $config['supervisor_servers'] as $name => $details ){
               </button>
               <div class="server-panel-actions">
                 <div class="server-panel-action-list">
-                  <a href="<?=h($server['server_url'])?>" class="btn btn-xs btn-outline-secondary" type="button" target="_blank" rel="noopener noreferrer" title="Open supervisor UI" aria-label="Open supervisor UI for <?=h($server['name'])?>">
+                  <a href="<?=h($server['server_url'])?>" class="btn btn-xs btn-outline-secondary" type="button" target="_blank" rel="noopener noreferrer" title="Open supervisor UI" aria-label="Open supervisor UI for <?=h($server['display_name'])?>">
                     <i class="bi bi-box-arrow-up-right"></i>
                   </a>
                   <?php if( $server['dead_process_count'] > 0 ){ ?>

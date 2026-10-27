@@ -30,7 +30,8 @@
 		],
 		"check": [
 			"composer validate --no-check-publish",
-			"find . -path './vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l"
+			"find . -path './vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l",
+			"php tests/dashboard_labels.php"
 		]
 	}
 }
